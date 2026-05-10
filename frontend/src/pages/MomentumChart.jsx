@@ -1,3 +1,4 @@
+import { useMatch } from '../context/MatchContext';
 import useFetch from '../hooks/useFetch';
 import { fetchMomentum } from '../api/matchApi';
 import PageShell from '../components/PageShell';
@@ -6,10 +7,10 @@ import {
   ReferenceLine, ResponsiveContainer, Legend,
 } from 'recharts';
 
-const MATCH_ID = 3869685;
 
 export default function MomentumChart() {
-  const { data, error, loading } = useFetch(fetchMomentum, MATCH_ID);
+  const { selected } = useMatch();
+  const { data, error, loading } = useFetch(fetchMomentum, selected.matchId);
 
   return (
     <PageShell loading={loading} error={error}>

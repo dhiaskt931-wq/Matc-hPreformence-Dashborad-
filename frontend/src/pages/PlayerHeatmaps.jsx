@@ -1,10 +1,10 @@
+import { useMatch } from '../context/MatchContext';
 import { useState } from 'react';
 import useFetch from '../hooks/useFetch';
 import { fetchHeatmap } from '../api/matchApi';
 import PageShell from '../components/PageShell';
 import GridHeatmap from '../components/GridHeatmap';
 
-const MATCH_ID = 3869685;
 
 function PlayerSelect({ players, selected, onChange, color }) {
   const sorted = Object.entries(players).sort((a, b) => b[1].count - a[1].count);
@@ -21,7 +21,8 @@ function PlayerSelect({ players, selected, onChange, color }) {
 }
 
 export default function PlayerHeatmaps() {
-  const { data, error, loading } = useFetch(fetchHeatmap, MATCH_ID);
+  const { selected } = useMatch();
+  const { data, error, loading } = useFetch(fetchHeatmap, selected.matchId);
   const [sel1, setSel1] = useState(null);
   const [sel2, setSel2] = useState(null);
 

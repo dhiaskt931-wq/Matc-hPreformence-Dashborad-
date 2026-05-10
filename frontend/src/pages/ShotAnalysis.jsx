@@ -1,3 +1,4 @@
+import { useMatch } from '../context/MatchContext';
 import useFetch from '../hooks/useFetch';
 import { fetchShotAnalysis } from '../api/matchApi';
 import PageShell from '../components/PageShell';
@@ -9,7 +10,6 @@ import {
   ResponsiveContainer, Cell, Legend,
 } from 'recharts';
 
-const MATCH_ID = 3869685;
 
 function StatCard({ label, t1val, t2val, team1, team2 }) {
   return (
@@ -29,8 +29,9 @@ function StatCard({ label, t1val, t2val, team1, team2 }) {
 }
 
 export default function ShotAnalysis() {
-  const { data: analysis, error: e1, loading: l1 } = useFetch(fetchShotAnalysis, MATCH_ID);
-  const { data: matchData, error: e2, loading: l2 } = useFetchBase(fetchMatch, MATCH_ID);
+  const { selected } = useMatch();
+  const { data: analysis, error: e1, loading: l1 } = useFetch(fetchShotAnalysis, selected.matchId);
+  const { data: matchData, error: e2, loading: l2 } = useFetchBase(fetchMatch, selected.matchId);
 
   return (
     <PageShell loading={l1 || l2} error={e1 || e2}>

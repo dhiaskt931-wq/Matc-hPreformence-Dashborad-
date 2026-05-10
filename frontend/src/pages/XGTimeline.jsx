@@ -1,3 +1,4 @@
+import { useMatch } from '../context/MatchContext';
 import useFetch from '../hooks/useFetch';
 import { fetchMatch } from '../api/matchApi';
 import PageShell from '../components/PageShell';
@@ -6,7 +7,6 @@ import {
   ReferenceLine, ResponsiveContainer, Legend,
 } from 'recharts';
 
-const MATCH_ID = 3869685;
 
 function buildTimeline(flow, team1, team2) {
   const allMins = new Set([
@@ -32,7 +32,8 @@ const GoalDot = ({ cx, cy, payload, dataKey, flow }) => {
 };
 
 export default function XGTimeline() {
-  const { data, error, loading } = useFetch(fetchMatch, MATCH_ID);
+  const { selected } = useMatch();
+  const { data, error, loading } = useFetch(fetchMatch, selected.matchId);
   return (
     <PageShell loading={loading} error={error}>
       {data && (() => {

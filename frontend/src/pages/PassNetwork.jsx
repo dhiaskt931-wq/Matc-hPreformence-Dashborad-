@@ -1,10 +1,10 @@
+import { useMatch } from '../context/MatchContext';
 import { useState } from 'react';
 import useFetch from '../hooks/useFetch';
 import { fetchPassNetwork } from '../api/matchApi';
 import PageShell from '../components/PageShell';
 import PitchBase from '../components/PitchBase';
 
-const MATCH_ID = 3869685;
 const VW = 480, VH = 320, PW = 120, PH = 80;
 const sx = VW / PW, sy = VH / PH;
 
@@ -50,7 +50,8 @@ function Network({ nodes, edges, color }) {
 }
 
 export default function PassNetwork() {
-  const { data, error, loading } = useFetch(fetchPassNetwork, MATCH_ID);
+  const { selected } = useMatch();
+  const { data, error, loading } = useFetch(fetchPassNetwork, selected.matchId);
   const [activeTeam, setActiveTeam] = useState(0);
 
   return (

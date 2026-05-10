@@ -1,9 +1,9 @@
+import { useMatch } from '../context/MatchContext';
 import { useState } from 'react';
 import useFetch from '../hooks/useFetch';
 import { fetchPlayerStats } from '../api/matchApi';
 import PageShell from '../components/PageShell';
 
-const MATCH_ID = 3869685;
 
 const COLS = [
   { key: 'goals',     label: 'G' },
@@ -17,7 +17,8 @@ const COLS = [
 ];
 
 export default function TopPerformers() {
-  const { data, error, loading } = useFetch(fetchPlayerStats, MATCH_ID);
+  const { selected } = useMatch();
+  const { data, error, loading } = useFetch(fetchPlayerStats, selected.matchId);
   const [sortKey, setSortKey] = useState('xg');
   const [teamFilter, setTeamFilter] = useState('all');
 

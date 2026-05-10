@@ -1,13 +1,14 @@
+import { useMatch } from '../context/MatchContext';
 import useFetch from '../hooks/useFetch';
 import { fetchSetPieces } from '../api/matchApi';
 import PageShell from '../components/PageShell';
 import PitchBase from '../components/PitchBase';
 
-const MATCH_ID = 3869685;
 const VW = 480, VH = 320;
 
 export default function SetPieces() {
-  const { data, error, loading } = useFetch(fetchSetPieces, MATCH_ID);
+  const { selected } = useMatch();
+  const { data, error, loading } = useFetch(fetchSetPieces, selected.matchId);
 
   return (
     <PageShell loading={loading} error={error}>

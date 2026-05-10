@@ -2,6 +2,8 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
 from services.match_service import (
+    get_competitions,
+    get_matches_list,
     get_match_data,
     get_shot_analysis,
     get_pass_network,
@@ -28,6 +30,16 @@ def _run(fn, *args):
         return fn(*args)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/competitions")
+def competitions():
+    return _run(get_competitions)
+
+
+@app.get("/api/matches")
+def matches_list(competition_id: int, season_id: int):
+    return _run(get_matches_list, competition_id, season_id)
 
 
 @app.get("/api/match/{match_id}")

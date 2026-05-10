@@ -1,10 +1,10 @@
+import { useMatch } from '../context/MatchContext';
 import { useState } from 'react';
 import useFetch from '../hooks/useFetch';
 import { fetchDefensive } from '../api/matchApi';
 import PageShell from '../components/PageShell';
 import PitchBase from '../components/PitchBase';
 
-const MATCH_ID = 3869685;
 const VW = 480, VH = 320, PW = 120, PH = 80;
 
 const ACTION_CONFIG = {
@@ -16,7 +16,8 @@ const ACTION_CONFIG = {
 };
 
 export default function DefensiveActions() {
-  const { data, error, loading } = useFetch(fetchDefensive, MATCH_ID);
+  const { selected } = useMatch();
+  const { data, error, loading } = useFetch(fetchDefensive, selected.matchId);
   const [activeTypes, setActiveTypes] = useState(new Set(['interception', 'clearance', 'block', 'tackle']));
   const [activeTeam, setActiveTeam] = useState('all');
 

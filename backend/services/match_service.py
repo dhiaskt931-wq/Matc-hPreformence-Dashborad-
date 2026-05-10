@@ -3,6 +3,41 @@ import numpy as np
 import pandas as pd
 from statsbombpy import sb
 
+
+# ── discovery endpoints ───────────────────────────────────────────────────────
+
+def get_competitions() -> list:
+    comps = sb.competitions()
+    result = []
+    for _, row in comps.iterrows():
+        result.append({
+            "competition_id": int(row["competition_id"]),
+            "season_id":      int(row["season_id"]),
+            "competition_name": str(row["competition_name"]),
+            "season_name":    str(row["season_name"]),
+            "country_name":   str(row.get("country_name", "")),
+            "gender":         str(row.get("competition_gender", "male")),
+        })
+    return sorted(result, key=lambda x: (x["competition_name"], x["season_name"]))
+
+
+def get_matches_list(competition_id: int, season_id: int) -> list:
+    matches = sb.matches(competition_id=competition_id, season_id=season_id)
+    result = []
+    for _, row in matches.iterrows():
+        result.append({
+            "match_id":   int(row["match_id"]),
+            "home_team":  str(row["home_team"]),
+            "away_team":  str(row["away_team"]),
+            "home_score": int(row["home_score"]),
+            "away_score": int(row["away_score"]),
+            "match_date": str(row.get("match_date", "")),
+            "stage":      str(row.get("competition_stage", "")),
+            "stadium":    str(row.get("stadium", "")),
+        })
+    return sorted(result, key=lambda x: x["match_date"], reverse=True)
+
+
 # ── helpers ───────────────────────────────────────────────────────────────────
 
 def _load(match_id: int):

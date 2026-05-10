@@ -1,13 +1,14 @@
+import { useMatch } from '../context/MatchContext';
 import { useState } from 'react';
 import useFetch from '../hooks/useFetch';
 import { fetchPressure } from '../api/matchApi';
 import PageShell from '../components/PageShell';
 import GridHeatmap from '../components/GridHeatmap';
 
-const MATCH_ID = 3869685;
 
 export default function DuelsPressure() {
-  const { data, error, loading } = useFetch(fetchPressure, MATCH_ID);
+  const { selected } = useMatch();
+  const { data, error, loading } = useFetch(fetchPressure, selected.matchId);
   const [activePressTeam, setActivePressTeam] = useState(0);
 
   return (

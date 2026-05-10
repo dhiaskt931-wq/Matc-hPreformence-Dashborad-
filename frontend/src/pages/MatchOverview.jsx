@@ -1,3 +1,4 @@
+import { useMatch } from '../context/MatchContext';
 import { useState, useEffect } from 'react';
 import { fetchMatch } from '../api/matchApi';
 import Header from '../components/Header';
@@ -8,7 +9,6 @@ import MatchStats from '../components/MatchStats';
 import XGFlow from '../components/XGFlow';
 import GKSpotlight from '../components/GKSpotlight';
 
-const MATCH_ID = 3869685;
 
 const grid3 = {
   display: 'grid',
@@ -17,11 +17,12 @@ const grid3 = {
 };
 
 export default function MatchOverview() {
+  const { selected } = useMatch();
   const [data, setData] = useState(null);
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    fetchMatch(MATCH_ID)
+    fetchMatch(selected.matchId)
       .then(setData)
       .catch(e => setError(e.message));
   }, []);

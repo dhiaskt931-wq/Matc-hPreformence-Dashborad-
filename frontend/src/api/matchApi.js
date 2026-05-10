@@ -6,7 +6,9 @@ async function get(path) {
   return res.json();
 }
 
-export const fetchMatch      = (id) => get(`/api/match/${id}`);
+export const fetchCompetitions  = ()   => get('/api/competitions');
+export const fetchMatchesList   = (compId, seasonId) => get(`/api/matches?competition_id=${compId}&season_id=${seasonId}`);
+export const fetchMatch         = (id) => get(`/api/match/${id}`);
 export const fetchShotAnalysis  = (id) => get(`/api/match/${id}/shot-analysis`);
 export const fetchPassNetwork   = (id) => get(`/api/match/${id}/pass-network`);
 export const fetchHeatmap       = (id) => get(`/api/match/${id}/heatmap`);
