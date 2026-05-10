@@ -6,25 +6,25 @@ const NAV = [
     group: 'Match Analysis',
     items: [
       { path: '/',             icon: '⚽', label: 'Match Overview' },
-      { path: '/xg-timeline',  icon: '📈', label: 'xG Timeline',      badge: 'soon' },
-      { path: '/shot-analysis',icon: '🎯', label: 'Shot Analysis',     badge: 'soon' },
-      { path: '/pass-network', icon: '🔗', label: 'Pass Network',      badge: 'soon' },
+      { path: '/xg-timeline',  icon: '📈', label: 'xG Timeline' },
+      { path: '/shot-analysis',icon: '🎯', label: 'Shot Analysis' },
+      { path: '/pass-network', icon: '🔗', label: 'Pass Network' },
     ],
   },
   {
     group: 'Player Analysis',
     items: [
-      { path: '/heatmaps',     icon: '🌡️', label: 'Player Heatmaps',  badge: 'soon' },
-      { path: '/top-stats',    icon: '🏅', label: 'Top Performers',    badge: 'soon' },
-      { path: '/duels',        icon: '⚔️', label: 'Duels & Pressure',  badge: 'soon' },
+      { path: '/heatmaps',     icon: '🌡️', label: 'Player Heatmaps' },
+      { path: '/top-stats',    icon: '🏅', label: 'Top Performers' },
+      { path: '/duels',        icon: '⚔️', label: 'Duels & Pressure' },
     ],
   },
   {
     group: 'Team Analysis',
     items: [
-      { path: '/defensive',    icon: '🛡️', label: 'Defensive Actions', badge: 'soon' },
-      { path: '/set-pieces',   icon: '📐', label: 'Set Pieces',         badge: 'soon' },
-      { path: '/momentum',     icon: '⚡', label: 'Momentum Chart',     badge: 'soon' },
+      { path: '/defensive',    icon: '🛡️', label: 'Defensive Actions' },
+      { path: '/set-pieces',   icon: '📐', label: 'Set Pieces' },
+      { path: '/momentum',     icon: '⚡', label: 'Momentum Chart' },
     ],
   },
 ];
