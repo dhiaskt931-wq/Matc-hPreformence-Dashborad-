@@ -15,12 +15,12 @@ function buildGrid(touches, cols, rows) {
   return { grid, cw, rh };
 }
 
-export default function GridHeatmap({ touches = [], color = '#75AADB', cols = DEFAULT_COLS, rows = DEFAULT_ROWS, height = 260 }) {
+export default function GridHeatmap({ touches = [], color = '#5b9bd5', cols = DEFAULT_COLS, rows = DEFAULT_ROWS, height = 260 }) {
   const { grid, cw, rh } = buildGrid(touches, cols, rows);
   const maxVal = Math.max(1, ...grid.flat());
 
   return (
-    <svg viewBox="0 0 120 80" style={{ width: '100%', height, background: '#0d1117', borderRadius: 4 }}
+    <svg viewBox="0 0 120 80" style={{ width: '100%', height, background: '#0a0d12', borderRadius: 4 }}
          preserveAspectRatio="xMidYMid meet">
       {grid.map((row, ri) =>
         row.map((val, ci) => {

@@ -9,9 +9,9 @@ const VW = 480, VH = 320, PW = 120, PH = 80;
 
 const ACTION_CONFIG = {
   pressure:      { color: '#f0c040', label: 'Pressure',      r: 0.8 },
-  interception:  { color: '#75AADB', label: 'Interception',  r: 1.2 },
-  clearance:     { color: '#8b949e', label: 'Clearance',     r: 1.1 },
-  block:         { color: '#EF3340', label: 'Block',         r: 1.3 },
+  interception:  { color: '#5b9bd5', label: 'Interception',  r: 1.2 },
+  clearance:     { color: '#5a6478', label: 'Clearance',     r: 1.1 },
+  block:         { color: '#d94f5c', label: 'Block',         r: 1.3 },
   tackle:        { color: '#4ade80', label: 'Tackle',        r: 1.2 },
 };
 
@@ -32,7 +32,7 @@ export default function DefensiveActions() {
       {data && (() => {
         const { team1, team2, actions, counts } = data;
         const teams = [team1, team2];
-        const colors = ['#75AADB', '#EF3340'];
+        const colors = ['#5b9bd5', '#d94f5c'];
 
         const visible = actions.filter(a =>
           activeTypes.has(a.type) &&
@@ -49,8 +49,8 @@ export default function DefensiveActions() {
               {['all', ...teams].map((t, i) => (
                 <button key={t} onClick={() => setActiveTeam(t)} style={{
                   padding: '4px 10px', borderRadius: 5, border: 'none', cursor: 'pointer', fontSize: 11,
-                  background: activeTeam === t ? (t === team1 ? '#75AADB' : t === team2 ? '#EF3340' : 'var(--text)') : 'var(--card)',
-                  color: activeTeam === t ? '#0d1117' : 'var(--muted)', fontWeight: 600,
+                  background: activeTeam === t ? (t === team1 ? '#5b9bd5' : t === team2 ? '#d94f5c' : 'var(--text)') : 'var(--card)',
+                  color: activeTeam === t ? '#0a0d12' : 'var(--muted)', fontWeight: 600,
                 }}>{t === 'all' ? 'Both' : t}</button>
               ))}
               <div style={{ width: 1, height: 16, background: 'var(--border)', margin: '0 4px' }} />
@@ -59,7 +59,7 @@ export default function DefensiveActions() {
                 <button key={type} onClick={() => toggle(type)} style={{
                   padding: '4px 10px', borderRadius: 5, border: `1px solid ${cfg.color}`, cursor: 'pointer', fontSize: 11,
                   background: activeTypes.has(type) ? cfg.color : 'transparent',
-                  color: activeTypes.has(type) ? '#0d1117' : cfg.color, fontWeight: 600,
+                  color: activeTypes.has(type) ? '#0a0d12' : cfg.color, fontWeight: 600,
                 }}>{cfg.label}</button>
               ))}
             </div>
@@ -67,12 +67,12 @@ export default function DefensiveActions() {
             <div style={{ display: 'grid', gridTemplateColumns: '1.6fr 1fr', gap: 12 }}>
               <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
                 <svg viewBox={`0 0 ${VW} ${VH}`}
-                  style={{ width: '100%', background: '#0d1117', display: 'block' }}
+                  style={{ width: '100%', background: '#0a0d12', display: 'block' }}
                   preserveAspectRatio="xMidYMid meet">
                   <g transform={`scale(${VW / PW},${VH / PH})`}>
                     <PitchBase />
                     {visible.map((a, i) => {
-                      const cfg = ACTION_CONFIG[a.type] ?? { color: '#8b949e', r: 0.9 };
+                      const cfg = ACTION_CONFIG[a.type] ?? { color: '#5a6478', r: 0.9 };
                       return (
                         <circle key={i}
                           cx={a.x} cy={a.y} r={cfg.r}

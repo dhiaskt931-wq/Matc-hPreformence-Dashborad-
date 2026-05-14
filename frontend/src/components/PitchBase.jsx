@@ -1,5 +1,5 @@
 // Reusable StatsBomb pitch outline (120 x 80 yards)
-export default function PitchBase({ stroke = '#30363d', sw = 0.7 }) {
+export default function PitchBase({ stroke = '#1e2733', sw = 0.7 }) {
   return (
     <g stroke={stroke} strokeWidth={sw} fill="none">
       <rect x={0} y={0} width={120} height={80} />

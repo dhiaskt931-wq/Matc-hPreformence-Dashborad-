@@ -14,7 +14,7 @@ function Network({ nodes, edges, color }) {
   const nodeMap = Object.fromEntries(nodes.map(n => [n.player, n]));
 
   return (
-    <svg viewBox={`0 0 ${VW} ${VH}`} style={{ width: '100%', background: '#0d1117', borderRadius: 4 }}
+    <svg viewBox={`0 0 ${VW} ${VH}`} style={{ width: '100%', background: '#0a0d12', borderRadius: 4 }}
          preserveAspectRatio="xMidYMid meet">
       <g transform={`scale(${sx},${sy})`}>
         <PitchBase />
@@ -59,7 +59,7 @@ export default function PassNetwork() {
       {data && (() => {
         const { team1, team2, networks } = data;
         const teams = [team1, team2];
-        const colors = ['#75AADB', '#EF3340'];
+        const colors = ['#5b9bd5', '#d94f5c'];
         const team = teams[activeTeam];
         const net = networks[team] ?? { nodes: [], edges: [] };
 
@@ -77,7 +77,7 @@ export default function PassNetwork() {
                   <button key={t} onClick={() => setActiveTeam(i)} style={{
                     padding: '5px 14px', borderRadius: 5, border: 'none', cursor: 'pointer',
                     background: activeTeam === i ? colors[i] : 'var(--card)',
-                    color: activeTeam === i ? '#0d1117' : 'var(--muted)',
+                    color: activeTeam === i ? '#0a0d12' : 'var(--muted)',
                     fontWeight: 700, fontSize: 12,
                   }}>{t}</button>
                 ))}

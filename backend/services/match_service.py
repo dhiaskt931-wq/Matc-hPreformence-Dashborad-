@@ -40,10 +40,29 @@ def get_matches_list(competition_id: int, season_id: int) -> list:
 
 # ── helpers ───────────────────────────────────────────────────────────────────
 
+_COMP_CACHE: dict[int, tuple[int, int]] = {3869685: (43, 106)}
+
+
+def _find_comp(match_id: int) -> tuple[int, int]:
+    if match_id in _COMP_CACHE:
+        return _COMP_CACHE[match_id]
+    for _, row in sb.competitions().iterrows():
+        try:
+            m = sb.matches(competition_id=int(row["competition_id"]), season_id=int(row["season_id"]))
+            if match_id in m["match_id"].values:
+                pair = (int(row["competition_id"]), int(row["season_id"]))
+                _COMP_CACHE[match_id] = pair
+                return pair
+        except Exception:
+            continue
+    raise ValueError(f"Match {match_id} not found in any StatsBomb competition")
+
+
 def _load(match_id: int):
-    """Return (events, team1, team2) with one StatsBomb call per match."""
+    """Return (events, team1, team2, row) for any StatsBomb match."""
     events = sb.events(match_id=match_id)
-    matches = sb.matches(competition_id=43, season_id=106)
+    comp_id, season_id = _find_comp(match_id)
+    matches = sb.matches(competition_id=comp_id, season_id=season_id)
     row = matches[matches["match_id"] == match_id].iloc[0]
     return events, str(row["home_team"]), str(row["away_team"]), row
 

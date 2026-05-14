@@ -2,7 +2,7 @@
 const PW = 120, PH = 80;
 
 function PitchLines() {
-  const stroke = '#30363d';
+  const stroke = '#1e2733';
   const sw = 0.6;
   return (
     <g stroke={stroke} strokeWidth={sw} fill="none">
@@ -38,7 +38,7 @@ export default function ShotMap({ shots, team1, team2 }) {
       <div className="label" style={{ marginBottom: 8 }}>Shot Map</div>
       <svg
         viewBox={`0 0 ${VW} ${VH}`}
-        style={{ width: '100%', background: '#0d1117', borderRadius: 4 }}
+        style={{ width: '100%', background: '#0a0d12', borderRadius: 6 }}
         preserveAspectRatio="xMidYMid meet"
       >
         <g transform={`scale(${sx},${sy})`}>
@@ -48,7 +48,7 @@ export default function ShotMap({ shots, team1, team2 }) {
             const x = isT2 ? PW - s.x : s.x;
             const y = isT2 ? PH - s.y : s.y;
             const r = Math.max(1.2, Math.sqrt(s.xg) * 5);
-            const color = isT2 ? '#EF3340' : '#75AADB';
+            const color = isT2 ? '#d94f5c' : '#5b9bd5';
             const isGoal = s.outcome === 'Goal';
             return (
               <circle
@@ -66,10 +66,10 @@ export default function ShotMap({ shots, team1, team2 }) {
 
       <div style={{ display: 'flex', justifyContent: 'center', gap: 16, marginTop: 8, flexWrap: 'wrap' }}>
         {[
-          { color: '#75AADB', filled: true,  label: `${team1?.slice(0,3).toUpperCase()} goal` },
-          { color: '#75AADB', filled: false, label: `${team1?.slice(0,3).toUpperCase()} shot` },
-          { color: '#EF3340', filled: true,  label: `${team2?.slice(0,3).toUpperCase()} goal` },
-          { color: '#EF3340', filled: false, label: `${team2?.slice(0,3).toUpperCase()} shot` },
+          { color: '#5b9bd5', filled: true,  label: `${team1?.slice(0,3).toUpperCase()} goal` },
+          { color: '#5b9bd5', filled: false, label: `${team1?.slice(0,3).toUpperCase()} shot` },
+          { color: '#d94f5c', filled: true,  label: `${team2?.slice(0,3).toUpperCase()} goal` },
+          { color: '#d94f5c', filled: false, label: `${team2?.slice(0,3).toUpperCase()} shot` },
         ].map(({ color, filled, label }) => (
           <span key={label} style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 10, color: 'var(--muted)' }}>
             <svg width={10} height={10}>

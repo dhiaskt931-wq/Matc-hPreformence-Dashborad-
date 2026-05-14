@@ -45,8 +45,8 @@ export default function PlayerHeatmaps() {
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
               {[
-                { team: team1, players: p1, sel: player1, setSel: setSel1, color: '#75AADB', touches: touches1 },
-                { team: team2, players: p2, sel: player2, setSel: setSel2, color: '#EF3340', touches: touches2 },
+                { team: team1, players: p1, sel: player1, setSel: setSel1, color: '#5b9bd5', touches: touches1 },
+                { team: team2, players: p2, sel: player2, setSel: setSel2, color: '#d94f5c', touches: touches2 },
               ].map(({ team, players: pMap, sel, setSel, color, touches }) => (
                 <div key={team}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
@@ -77,7 +77,7 @@ export default function PlayerHeatmaps() {
             <div className="card" style={{ marginTop: 16 }}>
               <div className="label" style={{ marginBottom: 10 }}>All Players — Touch Count</div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-                {[{ team: team1, pMap: p1, color: '#75AADB' }, { team: team2, pMap: p2, color: '#EF3340' }].map(({ team, pMap, color }) => (
+                {[{ team: team1, pMap: p1, color: '#5b9bd5' }, { team: team2, pMap: p2, color: '#d94f5c' }].map(({ team, pMap, color }) => (
                   <div key={team}>
                     <div style={{ color, fontWeight: 700, fontSize: 12, marginBottom: 8 }}>{team}</div>
                     {Object.entries(pMap).sort((a, b) => b[1].count - a[1].count).map(([name, info]) => {

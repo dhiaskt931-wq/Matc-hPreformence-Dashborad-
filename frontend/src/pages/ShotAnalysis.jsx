@@ -116,13 +116,13 @@ export default function ShotAnalysis() {
                 <div className="label" style={{ marginBottom: 8 }}>Shots by Distance (yards from goal)</div>
                 <ResponsiveContainer width="100%" height={180}>
                   <BarChart data={distData} margin={{ top: 4, right: 8, bottom: 4, left: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#30363d" vertical={false} />
-                    <XAxis dataKey="range" stroke="#8b949e" tick={{ fill: '#8b949e', fontSize: 10 }} />
-                    <YAxis stroke="#8b949e" tick={{ fill: '#8b949e', fontSize: 10 }} width={28} />
-                    <Tooltip contentStyle={{ background: '#161b22', border: '1px solid #30363d', borderRadius: 6, fontSize: 11 }} />
-                    <Legend wrapperStyle={{ fontSize: 10, color: '#8b949e' }} />
-                    <Bar dataKey={team1} fill="#75AADB" radius={[2, 2, 0, 0]} />
-                    <Bar dataKey={team2} fill="#EF3340" radius={[2, 2, 0, 0]} />
+                    <CartesianGrid strokeDasharray="3 3" stroke="#1e2733" vertical={false} />
+                    <XAxis dataKey="range" stroke="#5a6478" tick={{ fill: '#5a6478', fontSize: 10 }} />
+                    <YAxis stroke="#5a6478" tick={{ fill: '#5a6478', fontSize: 10 }} width={28} />
+                    <Tooltip contentStyle={{ background: '#141920', border: '1px solid #1e2733', borderRadius: 6, fontSize: 11 }} />
+                    <Legend wrapperStyle={{ fontSize: 10, color: '#5a6478' }} />
+                    <Bar dataKey={team1} fill="#5b9bd5" radius={[2, 2, 0, 0]} />
+                    <Bar dataKey={team2} fill="#d94f5c" radius={[2, 2, 0, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
@@ -132,13 +132,13 @@ export default function ShotAnalysis() {
                 <div className="label" style={{ marginBottom: 8 }}>Body Part</div>
                 <ResponsiveContainer width="100%" height={180}>
                   <BarChart data={bpData} layout="vertical" margin={{ top: 4, right: 8, bottom: 4, left: 60 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#30363d" horizontal={false} />
-                    <XAxis type="number" stroke="#8b949e" tick={{ fill: '#8b949e', fontSize: 10 }} />
-                    <YAxis type="category" dataKey="part" stroke="#8b949e" tick={{ fill: '#8b949e', fontSize: 10 }} width={60} />
-                    <Tooltip contentStyle={{ background: '#161b22', border: '1px solid #30363d', borderRadius: 6, fontSize: 11 }} />
-                    <Legend wrapperStyle={{ fontSize: 10, color: '#8b949e' }} />
-                    <Bar dataKey={team1} fill="#75AADB" radius={[0, 2, 2, 0]} />
-                    <Bar dataKey={team2} fill="#EF3340" radius={[0, 2, 2, 0]} />
+                    <CartesianGrid strokeDasharray="3 3" stroke="#1e2733" horizontal={false} />
+                    <XAxis type="number" stroke="#5a6478" tick={{ fill: '#5a6478', fontSize: 10 }} />
+                    <YAxis type="category" dataKey="part" stroke="#5a6478" tick={{ fill: '#5a6478', fontSize: 10 }} width={60} />
+                    <Tooltip contentStyle={{ background: '#141920', border: '1px solid #1e2733', borderRadius: 6, fontSize: 11 }} />
+                    <Legend wrapperStyle={{ fontSize: 10, color: '#5a6478' }} />
+                    <Bar dataKey={team1} fill="#5b9bd5" radius={[0, 2, 2, 0]} />
+                    <Bar dataKey={team2} fill="#d94f5c" radius={[0, 2, 2, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
               </div>

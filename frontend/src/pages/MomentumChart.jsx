@@ -60,7 +60,7 @@ export default function MomentumChart() {
             {longPhases.length > 0 && (
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 14 }}>
                 {longPhases.map((p, i) => {
-                  const c = p.team === team1 ? '#75AADB' : '#EF3340';
+                  const c = p.team === team1 ? '#5b9bd5' : '#d94f5c';
                   return (
                     <div key={i} style={{
                       background: 'var(--card)', border: `1px solid ${c}`,
@@ -79,33 +79,33 @@ export default function MomentumChart() {
                 <AreaChart data={chartData} margin={{ top: 8, right: 20, bottom: 20, left: 0 }}>
                   <defs>
                     <linearGradient id="mArg" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#75AADB" stopOpacity={0.4} />
-                      <stop offset="95%" stopColor="#75AADB" stopOpacity={0.05} />
+                      <stop offset="5%" stopColor="#5b9bd5" stopOpacity={0.4} />
+                      <stop offset="95%" stopColor="#5b9bd5" stopOpacity={0.05} />
                     </linearGradient>
                     <linearGradient id="mFra" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#EF3340" stopOpacity={0.4} />
-                      <stop offset="95%" stopColor="#EF3340" stopOpacity={0.05} />
+                      <stop offset="5%" stopColor="#d94f5c" stopOpacity={0.4} />
+                      <stop offset="95%" stopColor="#d94f5c" stopOpacity={0.05} />
                     </linearGradient>
                   </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#30363d" vertical={false} />
-                  <XAxis dataKey="minute" stroke="#8b949e" tick={{ fill: '#8b949e', fontSize: 10 }}
-                    label={{ value: 'Minute', position: 'insideBottom', offset: -10, fill: '#8b949e', fontSize: 10 }} />
-                  <YAxis stroke="#8b949e" tick={{ fill: '#8b949e', fontSize: 10 }} width={32}
-                    label={{ value: 'Actions / 3 min', angle: -90, position: 'insideLeft', fill: '#8b949e', fontSize: 9 }} />
+                  <CartesianGrid strokeDasharray="3 3" stroke="#1e2733" vertical={false} />
+                  <XAxis dataKey="minute" stroke="#5a6478" tick={{ fill: '#5a6478', fontSize: 10 }}
+                    label={{ value: 'Minute', position: 'insideBottom', offset: -10, fill: '#5a6478', fontSize: 10 }} />
+                  <YAxis stroke="#5a6478" tick={{ fill: '#5a6478', fontSize: 10 }} width={32}
+                    label={{ value: 'Actions / 3 min', angle: -90, position: 'insideLeft', fill: '#5a6478', fontSize: 9 }} />
                   <Tooltip
-                    contentStyle={{ background: '#161b22', border: '1px solid #30363d', borderRadius: 6, fontSize: 11 }}
-                    labelStyle={{ color: '#8b949e' }}
+                    contentStyle={{ background: '#141920', border: '1px solid #1e2733', borderRadius: 6, fontSize: 11 }}
+                    labelStyle={{ color: '#5a6478' }}
                     labelFormatter={v => `Minute ${v}`}
                     formatter={(v, name) => [v, name]}
                   />
-                  <Legend wrapperStyle={{ fontSize: 11, color: '#8b949e', paddingTop: 8 }} />
-                  <ReferenceLine x={45} stroke="#30363d" strokeDasharray="4 2"
-                    label={{ value: 'HT', fill: '#8b949e', fontSize: 9 }} />
-                  <ReferenceLine x={90} stroke="#30363d" strokeDasharray="4 2"
-                    label={{ value: 'FT', fill: '#8b949e', fontSize: 9 }} />
-                  <Area type="monotone" dataKey={team1} stroke="#75AADB" strokeWidth={2}
+                  <Legend wrapperStyle={{ fontSize: 11, color: '#5a6478', paddingTop: 8 }} />
+                  <ReferenceLine x={45} stroke="#1e2733" strokeDasharray="4 2"
+                    label={{ value: 'HT', fill: '#5a6478', fontSize: 9 }} />
+                  <ReferenceLine x={90} stroke="#1e2733" strokeDasharray="4 2"
+                    label={{ value: 'FT', fill: '#5a6478', fontSize: 9 }} />
+                  <Area type="monotone" dataKey={team1} stroke="#5b9bd5" strokeWidth={2}
                     fill="url(#mArg)" dot={false} isAnimationActive={false} />
-                  <Area type="monotone" dataKey={team2} stroke="#EF3340" strokeWidth={2}
+                  <Area type="monotone" dataKey={team2} stroke="#d94f5c" strokeWidth={2}
                     fill="url(#mFra)" dot={false} isAnimationActive={false} />
                 </AreaChart>
               </ResponsiveContainer>
@@ -114,7 +114,7 @@ export default function MomentumChart() {
             {/* phase summary */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginTop: 12 }}>
               {[team1, team2].map((team, i) => {
-                const c = i === 0 ? '#75AADB' : '#EF3340';
+                const c = i === 0 ? '#5b9bd5' : '#d94f5c';
                 const dominated = longPhases.filter(p => p.team === team).reduce((s, p) => s + p.end - p.start, 0);
                 const totalActions = (momentum[team] ?? []).reduce((s, d) => s + d.actions, 0);
                 return (

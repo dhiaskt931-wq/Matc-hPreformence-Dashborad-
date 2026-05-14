@@ -34,29 +34,29 @@ export default function XGFlow({ flow, team1, team2 }) {
       <div className="label" style={{ marginBottom: 8 }}>xG Flow</div>
       <ResponsiveContainer width="100%" height={220}>
         <LineChart data={data} margin={{ top: 4, right: 12, bottom: 4, left: 0 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#30363d" vertical={false} />
+          <CartesianGrid strokeDasharray="3 3" stroke="#1e2733" vertical={false} />
           <XAxis
             dataKey="minute"
-            stroke="#8b949e" tick={{ fill: '#8b949e', fontSize: 10 }}
-            label={{ value: 'Minute', position: 'insideBottom', offset: -2, fill: '#8b949e', fontSize: 10 }}
+            stroke="#5a6478" tick={{ fill: '#5a6478', fontSize: 10 }}
+            label={{ value: 'Minute', position: 'insideBottom', offset: -2, fill: '#5a6478', fontSize: 10 }}
           />
-          <YAxis stroke="#8b949e" tick={{ fill: '#8b949e', fontSize: 10 }} width={34} />
+          <YAxis stroke="#5a6478" tick={{ fill: '#5a6478', fontSize: 10 }} width={34} />
           <Tooltip
-            contentStyle={{ background: '#161b22', border: '1px solid #30363d', borderRadius: 6, fontSize: 11 }}
-            labelStyle={{ color: '#8b949e' }}
-            itemStyle={{ color: '#e6edf3' }}
+            contentStyle={{ background: '#141920', border: '1px solid #1e2733', borderRadius: 8, fontSize: 11 }}
+            labelStyle={{ color: '#5a6478' }}
+            itemStyle={{ color: '#d4dce8' }}
             formatter={(v) => v.toFixed(2)}
           />
-          <Legend wrapperStyle={{ fontSize: 11, color: '#8b949e', paddingTop: 4 }} />
-          <ReferenceLine x={45} stroke="#30363d" strokeDasharray="4 2" label={{ value: 'HT', fill: '#8b949e', fontSize: 9 }} />
-          <ReferenceLine x={90} stroke="#30363d" strokeDasharray="4 2" label={{ value: 'FT', fill: '#8b949e', fontSize: 9 }} />
+          <Legend wrapperStyle={{ fontSize: 11, color: '#5a6478', paddingTop: 4 }} />
+          <ReferenceLine x={45} stroke="#1e2733" strokeDasharray="4 2" label={{ value: 'HT', fill: '#5a6478', fontSize: 9 }} />
+          <ReferenceLine x={90} stroke="#1e2733" strokeDasharray="4 2" label={{ value: 'FT', fill: '#5a6478', fontSize: 9 }} />
           <Line
-            type="stepAfter" dataKey={team1} stroke="#75AADB" strokeWidth={2}
+            type="stepAfter" dataKey={team1} stroke="#5b9bd5" strokeWidth={2}
             dot={(p) => <GoalDot {...p} dataKey={team1} flow={flow} />}
             activeDot={{ r: 4 }} isAnimationActive={false}
           />
           <Line
-            type="stepAfter" dataKey={team2} stroke="#EF3340" strokeWidth={2}
+            type="stepAfter" dataKey={team2} stroke="#d94f5c" strokeWidth={2}
             dot={(p) => <GoalDot {...p} dataKey={team2} flow={flow} />}
             activeDot={{ r: 4 }} isAnimationActive={false}
           />

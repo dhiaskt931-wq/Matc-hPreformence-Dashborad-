@@ -4,7 +4,6 @@ import useFetch from '../hooks/useFetch';
 import { fetchPlayerStats } from '../api/matchApi';
 import PageShell from '../components/PageShell';
 
-
 const COLS = [
   { key: 'goals',     label: 'G' },
   { key: 'assists',   label: 'A' },
@@ -15,6 +14,8 @@ const COLS = [
   { key: 'pressures', label: 'Press' },
   { key: 'dribbles',  label: 'Drb' },
 ];
+
+const RANK_COLORS = ['var(--gold)', 'var(--silver)', 'var(--bronze)'];
 
 export default function TopPerformers() {
   const { selected } = useMatch();
@@ -33,55 +34,105 @@ export default function TopPerformers() {
           .sort((a, b) => b[sortKey] - a[sortKey]);
 
         return (
-          <div style={{ padding: '20px 20px 32px' }}>
-            {/* controls */}
-            <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 14, flexWrap: 'wrap' }}>
-              <div className="label">Top Performers</div>
+          <div style={{ padding: '24px 24px 40px' }}>
+
+            {/* Header row */}
+            <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 16, flexWrap: 'wrap' }}>
+              <h2 style={{ fontSize: 16, fontWeight: 700, color: 'var(--text)', letterSpacing: '-0.02em' }}>
+                Top Performers
+              </h2>
               <div style={{ marginLeft: 'auto', display: 'flex', gap: 6 }}>
-                {['all', team1, team2].map(t => (
-                  <button key={t} onClick={() => setTeamFilter(t)} style={{
-                    padding: '4px 10px', borderRadius: 5, border: 'none', cursor: 'pointer', fontSize: 11,
-                    background: teamFilter === t ? (t === team1 ? '#75AADB' : t === team2 ? '#EF3340' : 'var(--text)') : 'var(--card)',
-                    color: teamFilter === t ? '#0d1117' : 'var(--muted)', fontWeight: 600,
-                  }}>{t === 'all' ? 'All' : t}</button>
-                ))}
+                {['all', team1, team2].map(t => {
+                  const isActive = teamFilter === t;
+                  const bg = isActive
+                    ? (t === team1 ? 'var(--arg)' : t === team2 ? 'var(--fra)' : 'var(--text)')
+                    : 'var(--card)';
+                  return (
+                    <button
+                      key={t}
+                      onClick={() => setTeamFilter(t)}
+                      style={{
+                        padding: '5px 12px', borderRadius: 6,
+                        border: `1px solid ${isActive ? 'transparent' : 'var(--border)'}`,
+                        cursor: 'pointer', fontSize: 11,
+                        background: bg,
+                        color: isActive ? '#0a0d12' : 'var(--muted)',
+                        fontWeight: 600, fontFamily: 'inherit',
+                        transition: 'background var(--transition), color var(--transition)',
+                      }}
+                    >{t === 'all' ? 'All Players' : t}</button>
+                  );
+                })}
               </div>
             </div>
 
             <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
                 <thead>
-                  <tr style={{ borderBottom: '1px solid var(--border)' }}>
-                    <th style={{ padding: '10px 14px', textAlign: 'left', color: 'var(--muted)', fontWeight: 700, fontSize: 10 }}>Player</th>
-                    <th style={{ padding: '10px 10px', textAlign: 'left', color: 'var(--muted)', fontWeight: 700, fontSize: 10 }}>Team</th>
+                  <tr style={{ borderBottom: '1px solid var(--border)', background: 'rgba(255,255,255,0.02)' }}>
+                    <th style={{ padding: '10px 16px', textAlign: 'left' }}>
+                      <span className="label">Player</span>
+                    </th>
+                    <th style={{ padding: '10px 10px', textAlign: 'left' }}>
+                      <span className="label">Team</span>
+                    </th>
                     {COLS.map(c => (
-                      <th key={c.key} onClick={() => setSortKey(c.key)} style={{
-                        padding: '10px 10px', textAlign: 'right', cursor: 'pointer',
-                        color: sortKey === c.key ? 'var(--arg)' : 'var(--muted)',
-                        fontWeight: 700, fontSize: 10, userSelect: 'none',
-                      }}>{c.label} {sortKey === c.key ? '▼' : ''}</th>
+                      <th
+                        key={c.key}
+                        onClick={() => setSortKey(c.key)}
+                        style={{
+                          padding: '10px 10px', textAlign: 'right', cursor: 'pointer',
+                          userSelect: 'none', transition: 'color var(--transition)',
+                        }}
+                      >
+                        <span className="label" style={{ color: sortKey === c.key ? 'var(--arg)' : 'var(--muted)' }}>
+                          {c.label}
+                          {sortKey === c.key && (
+                            <span style={{ marginLeft: 3, fontSize: 8 }}>▼</span>
+                          )}
+                        </span>
+                      </th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
                   {filtered.map((p, i) => {
-                    const c = p.team === team1 ? '#75AADB' : '#EF3340';
+                    const teamColor = p.team === team1 ? 'var(--arg)' : 'var(--fra)';
                     return (
-                      <tr key={p.player} style={{
-                        borderBottom: '1px solid var(--border)',
-                        background: i % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.02)',
-                      }}>
-                        <td style={{ padding: '8px 14px', color: 'var(--text)', fontWeight: i < 3 ? 700 : 400 }}>
-                          {i < 3 && <span style={{ fontSize: 9, marginRight: 4, color: ['var(--gold)', 'var(--silver)', 'var(--bronze)'][i] }}>●</span>}
+                      <tr
+                        key={p.player}
+                        style={{
+                          borderBottom: '1px solid var(--border)',
+                          background: i % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.015)',
+                          transition: 'background var(--transition)',
+                        }}
+                        onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.03)'}
+                        onMouseLeave={e => e.currentTarget.style.background = i % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.015)'}
+                      >
+                        <td style={{ padding: '8px 16px', color: 'var(--text)', fontWeight: i < 3 ? 600 : 400 }}>
+                          {i < 3 && (
+                            <span style={{
+                              display: 'inline-block', width: 6, height: 6,
+                              borderRadius: '50%', background: RANK_COLORS[i],
+                              marginRight: 8, verticalAlign: 'middle',
+                            }} />
+                          )}
                           {p.player}
                         </td>
-                        <td style={{ padding: '8px 10px', color: c, fontSize: 10, fontWeight: 700 }}>
-                          {p.team.slice(0, 3).toUpperCase()}
+                        <td style={{ padding: '8px 10px' }}>
+                          <span style={{
+                            display: 'inline-block',
+                            padding: '2px 6px', borderRadius: 4,
+                            background: p.team === team1 ? 'var(--arg-dim)' : 'var(--fra-dim)',
+                            color: teamColor, fontSize: 10, fontWeight: 700,
+                          }}>
+                            {p.team.slice(0, 3).toUpperCase()}
+                          </span>
                         </td>
                         {COLS.map(col => (
                           <td key={col.key} style={{
                             padding: '8px 10px', textAlign: 'right',
-                            color: sortKey === col.key ? c : 'var(--text)',
+                            color: sortKey === col.key ? teamColor : 'var(--text)',
                             fontWeight: sortKey === col.key ? 700 : 400,
                           }}>
                             {col.key === 'xg' ? p[col.key].toFixed(2) : p[col.key]}

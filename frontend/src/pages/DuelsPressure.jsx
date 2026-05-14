@@ -16,7 +16,7 @@ export default function DuelsPressure() {
       {data && (() => {
         const { team1, team2, pressures, duels, ppda } = data;
         const teams = [team1, team2];
-        const colors = ['#75AADB', '#EF3340'];
+        const colors = ['#5b9bd5', '#d94f5c'];
         const activeTeam = teams[activePressTeam];
         const teamPressures = pressures.filter(p => p.team === activeTeam);
 
@@ -32,7 +32,7 @@ export default function DuelsPressure() {
                     <button key={t} onClick={() => setActivePressTeam(i)} style={{
                       padding: '4px 12px', borderRadius: 5, border: 'none', cursor: 'pointer', fontSize: 11,
                       background: activePressTeam === i ? colors[i] : 'var(--card)',
-                      color: activePressTeam === i ? '#0d1117' : 'var(--muted)', fontWeight: 600,
+                      color: activePressTeam === i ? '#0a0d12' : 'var(--muted)', fontWeight: 600,
                     }}>{t} Pressure</button>
                   ))}
                 </div>

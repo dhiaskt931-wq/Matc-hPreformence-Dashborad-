@@ -7,10 +7,10 @@ export default function MatchStats({ stats, team1, team2 }) {
 
   return (
     <div className="card" style={{ height: '100%' }}>
-      <div className="label" style={{ marginBottom: 12 }}>Match Stats</div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10 }}>
-        <span style={{ color: 'var(--arg)', fontWeight: 700, fontSize: 12 }}>{team1}</span>
-        <span style={{ color: 'var(--fra)', fontWeight: 700, fontSize: 12 }}>{team2}</span>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+        <span style={{ color: 'var(--arg)', fontWeight: 700, fontSize: 11 }}>{team1}</span>
+        <span className="label">Match Stats</span>
+        <span style={{ color: 'var(--fra)', fontWeight: 700, fontSize: 11 }}>{team2}</span>
       </div>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
@@ -21,14 +21,26 @@ export default function MatchStats({ stats, team1, team2 }) {
           const pct1 = (v1 / total) * 100;
           return (
             <div key={key}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 5 }}>
                 <span style={{ color: 'var(--arg)', fontWeight: 700, fontSize: 12 }}>{v1}</span>
                 <span style={{ color: 'var(--muted)', fontSize: 11 }}>{LABELS[i]}</span>
                 <span style={{ color: 'var(--fra)', fontWeight: 700, fontSize: 12 }}>{v2}</span>
               </div>
-              <div style={{ height: 6, borderRadius: 3, background: 'var(--border)', overflow: 'hidden', display: 'flex' }}>
-                <div style={{ width: `${pct1}%`, background: 'var(--arg)', borderRadius: '3px 0 0 3px' }} />
-                <div style={{ flex: 1, background: 'var(--fra)', borderRadius: '0 3px 3px 0' }} />
+              <div className="stat-bar">
+                <div style={{
+                  width: `${pct1}%`,
+                  height: '100%',
+                  background: 'linear-gradient(90deg, var(--arg) 0%, #3a7cbf 100%)',
+                  borderRadius: '99px 0 0 99px',
+                  float: 'left',
+                }} />
+                <div style={{
+                  width: `${100 - pct1}%`,
+                  height: '100%',
+                  background: 'linear-gradient(90deg, #a83040 0%, var(--fra) 100%)',
+                  borderRadius: '0 99px 99px 0',
+                  float: 'right',
+                }} />
               </div>
             </div>
           );

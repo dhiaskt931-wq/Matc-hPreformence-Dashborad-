@@ -15,7 +15,7 @@ export default function SetPieces() {
       {data && (() => {
         const { team1, team2, corners, fkShots, counts } = data;
         const teams = [team1, team2];
-        const colors = { [team1]: '#75AADB', [team2]: '#EF3340' };
+        const colors = { [team1]: '#5b9bd5', [team2]: '#d94f5c' };
 
         return (
           <div style={{ padding: '20px 20px 32px' }}>
@@ -50,12 +50,12 @@ export default function SetPieces() {
                   <div className="label">Corner Delivery Positions</div>
                 </div>
                 <svg viewBox={`0 0 ${VW} ${VH}`}
-                  style={{ width: '100%', background: '#0d1117', display: 'block' }}
+                  style={{ width: '100%', background: '#0a0d12', display: 'block' }}
                   preserveAspectRatio="xMidYMid meet">
                   <g transform={`scale(${VW / 120},${VH / 80})`}>
                     <PitchBase />
                     {corners.map((c, i) => {
-                      const col = colors[c.team] ?? '#8b949e';
+                      const col = colors[c.team] ?? '#5a6478';
                       return (
                         <g key={i}>
                           <circle cx={c.x} cy={c.y} r={1.4} fill={col} opacity={0.9} />
@@ -79,12 +79,12 @@ export default function SetPieces() {
                   <div className="label">Free Kick Shots</div>
                 </div>
                 <svg viewBox={`0 0 ${VW} ${VH}`}
-                  style={{ width: '100%', background: '#0d1117', display: 'block' }}
+                  style={{ width: '100%', background: '#0a0d12', display: 'block' }}
                   preserveAspectRatio="xMidYMid meet">
                   <g transform={`scale(${VW / 120},${VH / 80})`}>
                     <PitchBase />
                     {fkShots.map((s, i) => {
-                      const col = colors[s.team] ?? '#8b949e';
+                      const col = colors[s.team] ?? '#5a6478';
                       const r = Math.max(1, Math.sqrt(s.xg || 0.05) * 5);
                       return (
                         <circle key={i}
