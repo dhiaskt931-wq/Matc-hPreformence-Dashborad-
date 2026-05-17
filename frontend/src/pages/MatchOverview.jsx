@@ -8,20 +8,39 @@ import ShotMap from '../components/ShotMap';
 import MatchStats from '../components/MatchStats';
 import XGFlow from '../components/XGFlow';
 import GKSpotlight from '../components/GKSpotlight';
+import Skeleton from '../components/Skeleton';
 
 /* ── Shared loading skeleton ─────────────────────────────────────────────── */
 function LoadingOverview() {
   return (
     <div style={{ padding: '0 20px 40px', display: 'flex', flexDirection: 'column', gap: 12 }}>
-      <div className="skeleton" style={{ height: 112, borderRadius: 16 }} />
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
-        {[0,1,2].map(i => <div key={i} className="skeleton" style={{ height: 88 }} />)}
+      {/* Header: two 44px team circles + score box */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', borderRadius: 16 }} className="card">
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <Skeleton height={44} width={44} style={{ borderRadius: '50%' }} delay={0} />
+          <Skeleton height={18} width={80} delay={60} />
+        </div>
+        <Skeleton height={52} width={140} delay={120} style={{ borderRadius: 12 }} />
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <Skeleton height={18} width={80} delay={60} />
+          <Skeleton height={44} width={44} style={{ borderRadius: '50%' }} delay={0} />
+        </div>
       </div>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.6fr 1fr', gap: 10 }}>
-        {[0,1,2].map(i => <div key={i} className="skeleton" style={{ height: 240 }} />)}
-      </div>
+      {/* StatBox row */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
-        {[0,1,2].map(i => <div key={i} className="skeleton" style={{ height: 200 }} />)}
+        {[0, 1, 2].map(i => <Skeleton key={i} height={88} delay={i * 60} />)}
+      </div>
+      {/* Middle row: TopPlayers | ShotMap | TopPlayers */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.8fr 1fr', gap: 10 }}>
+        <Skeleton height={240} delay={0} />
+        <Skeleton height={240} delay={60} />
+        <Skeleton height={240} delay={120} />
+      </div>
+      {/* Bottom row: MatchStats | XGFlow | GKSpotlight */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.4fr 1fr', gap: 10 }}>
+        <Skeleton height={200} delay={0} />
+        <Skeleton height={200} delay={60} />
+        <Skeleton height={200} delay={120} />
       </div>
     </div>
   );
@@ -77,7 +96,7 @@ function ESPNStatRow({ label, v1, v2, unit = '' }) {
   );
 }
 
-function ESPNOverview({ data, selected }) {
+function ESPNOverview({ data }) {
   const { meta, stats, scorers } = data;
   const { team1, team2 } = meta;
   const s1 = stats.team1 || {};
@@ -210,6 +229,7 @@ function StatsBombOverview({ selected }) {
   const [error, setError] = useState(null);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setData(null);
     setError(null);
     fetchMatch(selected.matchId)
@@ -282,6 +302,7 @@ function ESPNMatchLoader({ selected }) {
   const [error, setError] = useState(null);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setData(null);
     setError(null);
     fetchLiveMatch(selected.league_id, selected.matchId)
@@ -305,7 +326,7 @@ function ESPNMatchLoader({ selected }) {
   );
 
   if (!data) return <LoadingOverview />;
-  return <ESPNOverview data={data} selected={selected} />;
+  return <ESPNOverview data={data} />;
 }
 
 /* ── Root router ─────────────────────────────────────────────────────────── */

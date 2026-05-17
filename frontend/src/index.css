@@ -12,10 +12,8 @@
   --border-hi:   rgba(255,255,255,0.14);
   --border-glow: rgba(96,165,250,0.35);
 
-  --arg:         #60a5fa;
   --arg-dim:     rgba(96,165,250,0.10);
   --arg-glow:    rgba(96,165,250,0.22);
-  --fra:         #f87171;
   --fra-dim:     rgba(248,113,113,0.10);
   --fra-glow:    rgba(248,113,113,0.22);
 
@@ -227,6 +225,26 @@ body {
 .text-arg { color: var(--arg); }
 .text-fra { color: var(--fra); }
 .text-gold { color: var(--gold); }
+
+/* ── Accessibility ───────────────────────────────────────────────────────── */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ── Team color tokens (overridden dynamically by MatchContext) ───────────── */
+:root {
+  --team1: #60a5fa;
+  --team2: #f87171;
+  --arg: var(--team1);
+  --fra: var(--team2);
+}
 
 /* ── Reduced motion ──────────────────────────────────────────────────────── */
 @media (prefers-reduced-motion: reduce) {

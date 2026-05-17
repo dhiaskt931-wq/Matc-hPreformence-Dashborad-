@@ -1,11 +1,25 @@
-import math
+import collections
 import logging
-from functools import lru_cache
+import math
+import threading
+import time as _time
+from concurrent.futures import ThreadPoolExecutor, as_completed
+
 import numpy as np
 import pandas as pd
 from statsbombpy import sb
 
+from data_sources import cache
+
 logger = logging.getLogger(__name__)
+
+
+# ── thread-safe match cache ───────────────────────────────────────────────────
+
+_MATCH_CACHE: collections.OrderedDict = collections.OrderedDict()
+_MATCH_CACHE_LOCK = threading.Lock()
+MAX_CACHED_MATCHES = 50
+_MATCH_CACHE_TTL = 86400.0  # 24h — StatsBomb historical data is immutable
 
 
 # ── discovery endpoints ───────────────────────────────────────────────────────
@@ -15,12 +29,12 @@ def get_competitions() -> list:
     result = []
     for _, row in comps.iterrows():
         result.append({
-            "competition_id": int(row["competition_id"]),
-            "season_id":      int(row["season_id"]),
+            "competition_id":   int(row["competition_id"]),
+            "season_id":        int(row["season_id"]),
             "competition_name": str(row["competition_name"]),
-            "season_name":    str(row["season_name"]),
-            "country_name":   str(row.get("country_name", "")),
-            "gender":         str(row.get("competition_gender", "male")),
+            "season_name":      str(row["season_name"]),
+            "country_name":     str(row.get("country_name", "")),
+            "gender":           str(row.get("competition_gender", "male")),
         })
     return sorted(result, key=lambda x: (x["competition_name"], x["season_name"]))
 
@@ -67,27 +81,72 @@ def _find_comp(match_id: int) -> tuple[int, int]:
     _populate_comp_cache_from_index()
     if match_id in _COMP_CACHE:
         return _COMP_CACHE[match_id]
-    # Fallback: brute-force (rare — only for matches not in index yet)
-    for _, row in sb.competitions().iterrows():
+
+    # File cache check before expensive brute-force
+    cached = cache.get("comp_lookup", str(match_id), ttl=cache.TTL_HISTORICAL)
+    if cached is not None:
+        pair = (int(cached[0]), int(cached[1]))
+        _COMP_CACHE[match_id] = pair
+        return pair
+
+    logger.warning("Brute-force competition search triggered for match_id=%d", match_id)
+
+    def _check(comp_id: int, season_id: int) -> tuple[int, int] | None:
         try:
-            m = sb.matches(competition_id=int(row["competition_id"]), season_id=int(row["season_id"]))
+            m = sb.matches(competition_id=comp_id, season_id=season_id)
             if match_id in m["match_id"].values:
-                pair = (int(row["competition_id"]), int(row["season_id"]))
-                _COMP_CACHE[match_id] = pair
-                return pair
+                return (comp_id, season_id)
         except Exception:
-            continue
+            pass
+        return None
+
+    comps = sb.competitions()
+    comp_list = [(int(r["competition_id"]), int(r["season_id"])) for _, r in comps.iterrows()]
+
+    with ThreadPoolExecutor(max_workers=10) as executor:
+        futures = {executor.submit(_check, cid, sid): (cid, sid) for cid, sid in comp_list}
+        for future in as_completed(futures):
+            result = future.result()
+            if result is not None:
+                _COMP_CACHE[match_id] = result
+                cache.put("comp_lookup", str(match_id), list(result))
+                return result
+
     raise ValueError(f"Match {match_id} not found in any StatsBomb competition")
 
 
-@lru_cache(maxsize=20)
 def _load(match_id: int):
-    """Return (events, team1, team2, row) for any StatsBomb match. Cached per match_id."""
+    """Return (events_df, team1, team2, row_dict). Thread-safe TTL cache; no DataFrames stored."""
+    now = _time.time()
+    with _MATCH_CACHE_LOCK:
+        entry = _MATCH_CACHE.get(match_id)
+        if entry is not None:
+            cached_at, events_records, team1, team2, row_dict = entry
+            if now - cached_at < _MATCH_CACHE_TTL:
+                logger.debug("Cache HIT match_id=%d", match_id)
+                _MATCH_CACHE.move_to_end(match_id)
+                return pd.DataFrame(events_records), team1, team2, row_dict
+            del _MATCH_CACHE[match_id]
+
+    logger.debug("Cache MISS match_id=%d", match_id)
+
     events = sb.events(match_id=match_id)
     comp_id, season_id = _find_comp(match_id)
     matches = sb.matches(competition_id=comp_id, season_id=season_id)
     row = matches[matches["match_id"] == match_id].iloc[0]
-    return events, str(row["home_team"]), str(row["away_team"]), row
+
+    team1 = str(row["home_team"])
+    team2 = str(row["away_team"])
+    row_dict = dict(row)
+    events_records = events.to_dict(orient="records")
+
+    with _MATCH_CACHE_LOCK:
+        _MATCH_CACHE[match_id] = (_time.time(), events_records, team1, team2, row_dict)
+        _MATCH_CACHE.move_to_end(match_id)
+        while len(_MATCH_CACHE) > MAX_CACHED_MATCHES:
+            _MATCH_CACHE.popitem(last=False)
+
+    return pd.DataFrame(events_records), team1, team2, row_dict
 
 
 def _loc_x(loc):
@@ -102,16 +161,15 @@ def _loc_y(loc):
 
 def get_match_data(match_id: int) -> dict:
     events, team1, team2, row = _load(match_id)
-    events = events.copy()
     score1 = int(row["home_score"])
     score2 = int(row["away_score"])
     return {
-        "meta": _meta(row, team1, team2, score1, score2),
-        "statBoxes": _stat_boxes(events, team1, team2),
-        "topPlayers": _top_players(events, team1, team2),
-        "shotMap": _shot_map(events),
-        "matchStats": _match_stats(events, team1, team2),
-        "xgFlow": _xg_flow(events, team1, team2),
+        "meta":        _meta(row, team1, team2, score1, score2),
+        "statBoxes":   _stat_boxes(events, team1, team2),
+        "topPlayers":  _top_players(events, team1, team2),
+        "shotMap":     _shot_map(events),
+        "matchStats":  _match_stats(events, team1, team2),
+        "xgFlow":      _xg_flow(events, team1, team2),
         "goalkeepers": _goalkeepers(events, team1, team2),
     }
 
@@ -120,8 +178,8 @@ def _meta(row, team1, team2, score1, score2) -> dict:
     return {
         "team1": team1, "team2": team2,
         "score1": score1, "score2": score2,
-        "venue": str(row.get("stadium", "Unknown Stadium")),
-        "date": str(row.get("match_date", "")),
+        "venue":       str(row.get("stadium", "Unknown Stadium")),
+        "date":        str(row.get("match_date", "")),
         "competition": str(row.get("competition", "")),
     }
 
@@ -134,9 +192,9 @@ def _stat_boxes(events, team1, team2) -> dict:
     poss_pct = (poss / poss.sum() * 100).round(1)
     sot = shots[shots["shot_outcome"].isin(["Goal", "Saved"])].groupby("team")["id"].count()
     return {
-        "xg": {team1: float(xg.get(team1, 0)), team2: float(xg.get(team2, 0))},
-        "possession": {team1: float(poss_pct.get(team1, 0)), team2: float(poss_pct.get(team2, 0))},
-        "shotsOnTarget": {team1: int(sot.get(team1, 0)), team2: int(sot.get(team2, 0))},
+        "xg":           {team1: float(xg.get(team1, 0)),       team2: float(xg.get(team2, 0))},
+        "possession":   {team1: float(poss_pct.get(team1, 0)), team2: float(poss_pct.get(team2, 0))},
+        "shotsOnTarget":{team1: int(sot.get(team1, 0)),         team2: int(sot.get(team2, 0))},
     }
 
 
@@ -165,7 +223,7 @@ def _top_players(events, team1, team2) -> dict:
 
 def _shot_map(events) -> list:
     df = events[events["type"] == "Shot"][
-        ["team", "shot_outcome", "shot_statsbomb_xg", "location", "shot_type"]].copy()
+        ["team", "shot_outcome", "shot_statsbomb_xg", "location", "shot_type"]]
     df = df[df["shot_type"] != "Penalty"].copy()
     df["x"] = df["location"].apply(_loc_x)
     df["y"] = df["location"].apply(_loc_y)
@@ -177,16 +235,20 @@ def _shot_map(events) -> list:
 
 def _match_stats(events, team1, team2) -> dict:
     reg = events[events["period"] != 5]
-    passes = reg[reg["type"] == "Pass"].groupby("team")["id"].count()
-    fouls = reg[reg["type"] == "Foul Committed"].groupby("team")["id"].count()
-    corners = reg[(reg["type"] == "Pass") & (reg["pass_type"] == "Corner")].groupby("team")["id"].count()
-    recoveries = reg[reg["type"] == "Ball Recovery"].groupby("team")["id"].count()
-    dribbles = reg[(reg["type"] == "Dribble") & (reg["dribble_outcome"] == "Complete")].groupby("team")["id"].count()
+    passes    = reg[reg["type"] == "Pass"].groupby("team")["id"].count()
+    fouls     = reg[reg["type"] == "Foul Committed"].groupby("team")["id"].count()
+    corners   = reg[(reg["type"] == "Pass") & (reg["pass_type"] == "Corner")].groupby("team")["id"].count()
+    recoveries= reg[reg["type"] == "Ball Recovery"].groupby("team")["id"].count()
+    dribbles  = reg[(reg["type"] == "Dribble") & (reg["dribble_outcome"] == "Complete")].groupby("team")["id"].count()
     result = {}
     for team in [team1, team2]:
-        result[team] = {"passes": int(passes.get(team, 0)), "fouls": int(fouls.get(team, 0)),
-                         "corners": int(corners.get(team, 0)), "recoveries": int(recoveries.get(team, 0)),
-                         "dribbles": int(dribbles.get(team, 0))}
+        result[team] = {
+            "passes":     int(passes.get(team, 0)),
+            "fouls":      int(fouls.get(team, 0)),
+            "corners":    int(corners.get(team, 0)),
+            "recoveries": int(recoveries.get(team, 0)),
+            "dribbles":   int(dribbles.get(team, 0)),
+        }
     return result
 
 
@@ -233,12 +295,10 @@ def _goalkeepers(events, team1, team2) -> list:
 
 def get_shot_analysis(match_id: int) -> dict:
     events, team1, team2, _ = _load(match_id)
-    events = events.copy()
     shots = events[(events["type"] == "Shot") & (events["period"] != 5)].copy()
     shots["x"] = shots["location"].apply(_loc_x)
     shots["y"] = shots["location"].apply(_loc_y)
     shots = shots.dropna(subset=["x", "y"])
-    # distance from centre of goal (120, 40)
     shots["distance"] = shots.apply(
         lambda r: round(math.sqrt((r["x"] - 120) ** 2 + (r["y"] - 40) ** 2), 1), axis=1)
 
@@ -249,15 +309,13 @@ def get_shot_analysis(match_id: int) -> dict:
             result[team] = {}
             continue
 
-        # body part
         bp_col = "shot_body_part" if "shot_body_part" in t.columns else None
         body_parts = {}
         if bp_col:
             bp = t[bp_col].dropna().value_counts()
-            body_parts = {str(k): int(v) for k, v in bp.items() if str(k) != 'nan'}
+            body_parts = {str(k): int(v) for k, v in bp.items() if str(k) != "nan"}
 
-        # distance bins (yards from goal)
-        bins = [0, 6, 12, 18, 25, 200]
+        bins   = [0, 6, 12, 18, 25, 200]
         labels = ["0–6", "6–12", "12–18", "18–25", "25+"]
         t = t.copy()
         t["dist_bin"] = pd.cut(t["distance"], bins=bins, labels=labels, right=False)
@@ -268,39 +326,35 @@ def get_shot_analysis(match_id: int) -> dict:
                 "range": lbl,
                 "shots": len(sub),
                 "goals": int((sub["shot_outcome"] == "Goal").sum()),
-                "xg": round(float(sub["shot_statsbomb_xg"].sum()), 2),
+                "xg":    round(float(sub["shot_statsbomb_xg"].sum()), 2),
             })
 
-        # zones: inside box x>102 & 18<y<62, penalty area x>114 & 30<y<50
         ib = t[(t["x"] > 102) & t["y"].between(18, 62)]
         ob = t[~((t["x"] > 102) & t["y"].between(18, 62))]
-
-        # by half
         fh = t[t["minute"] <= 45]
         sh = t[t["minute"] > 45]
 
-        # shot type
         st_col = "shot_type" if "shot_type" in t.columns else None
         shot_types = {}
         if st_col:
             st = t[st_col].dropna().value_counts()
-            shot_types = {str(k): int(v) for k, v in st.items() if str(k) != 'nan'}
+            shot_types = {str(k): int(v) for k, v in st.items() if str(k) != "nan"}
 
         result[team] = {
             "total": len(t),
             "goals": int((t["shot_outcome"] == "Goal").sum()),
-            "xg": round(float(t["shot_statsbomb_xg"].sum()), 2),
+            "xg":    round(float(t["shot_statsbomb_xg"].sum()), 2),
             "avgDistance": round(float(t["distance"].mean()), 1),
-            "bodyParts": body_parts,
+            "bodyParts":   body_parts,
             "distanceBins": dist_rows,
             "zones": {
-                "insideBox": {"shots": len(ib), "goals": int((ib["shot_outcome"] == "Goal").sum()),
-                               "xg": round(float(ib["shot_statsbomb_xg"].sum()), 2)},
+                "insideBox":  {"shots": len(ib), "goals": int((ib["shot_outcome"] == "Goal").sum()),
+                                "xg": round(float(ib["shot_statsbomb_xg"].sum()), 2)},
                 "outsideBox": {"shots": len(ob), "goals": int((ob["shot_outcome"] == "Goal").sum()),
                                 "xg": round(float(ob["shot_statsbomb_xg"].sum()), 2)},
             },
             "byHalf": {
-                "first": {"shots": len(fh), "goals": int((fh["shot_outcome"] == "Goal").sum())},
+                "first":  {"shots": len(fh), "goals": int((fh["shot_outcome"] == "Goal").sum())},
                 "second": {"shots": len(sh), "goals": int((sh["shot_outcome"] == "Goal").sum())},
             },
             "shotTypes": shot_types,
@@ -311,10 +365,8 @@ def get_shot_analysis(match_id: int) -> dict:
 
 def get_pass_network(match_id: int) -> dict:
     events, team1, team2, _ = _load(match_id)
-    events = events.copy()
     reg = events[events["period"] != 5]
 
-    # open-play passes only
     open_play = reg[
         (reg["type"] == "Pass") &
         (~reg["pass_type"].isin(["Corner", "Free Kick", "Throw-in", "Kick Off"]))
@@ -327,14 +379,12 @@ def get_pass_network(match_id: int) -> dict:
         team_events["y"] = team_events["location"].apply(_loc_y)
         team_events = team_events.dropna(subset=["x", "y"])
 
-        # average position per player (top 11 by touch count)
         pos = (team_events.groupby("player")
                .agg(avg_x=("x", "mean"), avg_y=("y", "mean"), touches=("id", "count"))
                .reset_index())
         top11 = pos.nlargest(11, "touches")["player"].tolist()
         pos = pos[pos["player"].isin(top11)]
 
-        # pass edges between top-11 players
         t_passes = open_play[(open_play["team"] == team) & open_play["player"].isin(top11)].copy()
         edges = []
         if "pass_recipient" in t_passes.columns:
@@ -358,7 +408,6 @@ def get_pass_network(match_id: int) -> dict:
 
 def get_heatmap(match_id: int) -> dict:
     events, team1, team2, _ = _load(match_id)
-    events = events.copy()
     touch_types = ["Pass", "Carry", "Ball Receipt*", "Pressure", "Shot", "Dribble"]
     touches = events[events["type"].isin(touch_types)].copy()
     touches["x"] = touches["location"].apply(_loc_x)
@@ -368,12 +417,12 @@ def get_heatmap(match_id: int) -> dict:
     result = {}
     for team in [team1, team2]:
         t = touches[touches["team"] == team]
-        top_players = (t.groupby("player")["id"].count().nlargest(15).index.tolist())
+        top_players = t.groupby("player")["id"].count().nlargest(15).index.tolist()
         player_data = {}
         for player in top_players:
             p = t[t["player"] == player]
             player_data[player] = {
-                "count": len(p),
+                "count":   len(p),
                 "touches": [{"x": round(float(r["x"]), 1), "y": round(float(r["y"]), 1)}
                              for _, r in p.iterrows()],
             }
@@ -384,43 +433,41 @@ def get_heatmap(match_id: int) -> dict:
 
 def get_player_stats(match_id: int) -> dict:
     events, team1, team2, _ = _load(match_id)
-    events = events.copy()
     reg = events[events["period"] != 5]
 
-    base = reg.groupby(["team", "player"])["id"].count().reset_index()[["team", "player"]]
-
-    shots = reg[reg["type"] == "Shot"]
-    xg = (shots.groupby(["team", "player"])["shot_statsbomb_xg"].sum().round(2)
-          .reset_index().rename(columns={"shot_statsbomb_xg": "xg"}))
-    shot_cnt = (shots.groupby(["team", "player"])["id"].count()
-                .reset_index().rename(columns={"id": "shots"}))
-    goals = (events[events["shot_outcome"] == "Goal"].groupby(["team", "player"])["id"]
-             .count().reset_index().rename(columns={"id": "goals"}))
+    base      = reg.groupby(["team", "player"])["id"].count().reset_index()[["team", "player"]]
+    shots     = reg[reg["type"] == "Shot"]
+    xg        = (shots.groupby(["team", "player"])["shot_statsbomb_xg"].sum().round(2)
+                 .reset_index().rename(columns={"shot_statsbomb_xg": "xg"}))
+    shot_cnt  = (shots.groupby(["team", "player"])["id"].count()
+                 .reset_index().rename(columns={"id": "shots"}))
+    goals     = (events[events["shot_outcome"] == "Goal"].groupby(["team", "player"])["id"]
+                 .count().reset_index().rename(columns={"id": "goals"}))
     if "pass_goal_assist" in events.columns:
         assists = (events[events["pass_goal_assist"] == True].groupby(["team", "player"])["id"]
                    .count().reset_index().rename(columns={"id": "assists"}))
     else:
         assists = pd.DataFrame(columns=["team", "player", "assists"])
-    passes = (reg[reg["type"] == "Pass"].groupby(["team", "player"])["id"]
-              .count().reset_index().rename(columns={"id": "passes"}))
+    passes    = (reg[reg["type"] == "Pass"].groupby(["team", "player"])["id"]
+                 .count().reset_index().rename(columns={"id": "passes"}))
     key_passes = pd.DataFrame(columns=["team", "player", "keyPasses"])
     if "pass_key_pass" in reg.columns:
         key_passes = (reg[reg["pass_key_pass"] == True].groupby(["team", "player"])["id"]
                       .count().reset_index().rename(columns={"id": "keyPasses"}))
     pressures = (reg[reg["type"] == "Pressure"].groupby(["team", "player"])["id"]
                  .count().reset_index().rename(columns={"id": "pressures"}))
-    dribbles = (reg[(reg["type"] == "Dribble") & (reg["dribble_outcome"] == "Complete")]
-                .groupby(["team", "player"])["id"].count().reset_index().rename(columns={"id": "dribbles"}))
+    dribbles  = (reg[(reg["type"] == "Dribble") & (reg["dribble_outcome"] == "Complete")]
+                 .groupby(["team", "player"])["id"].count().reset_index().rename(columns={"id": "dribbles"}))
 
     merged = (base
-              .merge(xg, on=["team", "player"], how="left")
-              .merge(shot_cnt, on=["team", "player"], how="left")
-              .merge(goals, on=["team", "player"], how="left")
-              .merge(assists, on=["team", "player"], how="left")
-              .merge(passes, on=["team", "player"], how="left")
-              .merge(key_passes, on=["team", "player"], how="left")
+              .merge(xg,        on=["team", "player"], how="left")
+              .merge(shot_cnt,  on=["team", "player"], how="left")
+              .merge(goals,     on=["team", "player"], how="left")
+              .merge(assists,   on=["team", "player"], how="left")
+              .merge(passes,    on=["team", "player"], how="left")
+              .merge(key_passes,on=["team", "player"], how="left")
               .merge(pressures, on=["team", "player"], how="left")
-              .merge(dribbles, on=["team", "player"], how="left")
+              .merge(dribbles,  on=["team", "player"], how="left")
               .fillna(0))
 
     rows = [{"team": r["team"], "player": r["player"],
@@ -435,31 +482,27 @@ def get_player_stats(match_id: int) -> dict:
 
 def get_pressure_duels(match_id: int) -> dict:
     events, team1, team2, _ = _load(match_id)
-    events = events.copy()
     reg = events[events["period"] != 5]
 
-    # pressure locations
     press = reg[reg["type"] == "Pressure"].copy()
     press["x"] = press["location"].apply(_loc_x)
     press["y"] = press["location"].apply(_loc_y)
     press = press.dropna(subset=["x", "y"])
 
-    # duels
     duel_stats = {}
     for team in [team1, team2]:
         t = reg[(reg["type"] == "Duel") & (reg["team"] == team)]
-        won_vals = {"Won", "Success", "Success In Play", "Success Out"}
+        won_vals  = {"Won", "Success", "Success In Play", "Success Out"}
         lost_vals = {"Lost", "Fail"}
-        won = int(t["duel_outcome"].isin(won_vals).sum()) if "duel_outcome" in t.columns else 0
-        lost = int(t["duel_outcome"].isin(lost_vals).sum()) if "duel_outcome" in t.columns else 0
+        won   = int(t["duel_outcome"].isin(won_vals).sum())  if "duel_outcome" in t.columns else 0
+        lost  = int(t["duel_outcome"].isin(lost_vals).sum()) if "duel_outcome" in t.columns else 0
         total = len(t)
         duel_stats[team] = {"total": total, "won": won, "lost": lost,
                              "winPct": round(won / max(total, 1) * 100, 1)}
 
-    # PPDA: attacking team passes in opp half / defending team's defensive actions
     def ppda(atk, dfd):
         atk_passes = reg[(reg["team"] == atk) & (reg["type"] == "Pass")]
-        atk_opp = atk_passes[atk_passes["location"].apply(
+        atk_opp    = atk_passes[atk_passes["location"].apply(
             lambda l: l[0] > 60 if isinstance(l, list) else False)]
         def_actions = reg[(reg["team"] == dfd) &
                           (reg["type"].isin(["Pressure", "Duel", "Interception", "Foul Committed"]))]
@@ -470,13 +513,12 @@ def get_pressure_duels(match_id: int) -> dict:
         "pressures": [{"team": r["team"], "x": float(r["x"]), "y": float(r["y"])}
                        for _, r in press.iterrows()],
         "duels": duel_stats,
-        "ppda": {team1: ppda(team1, team2), team2: ppda(team2, team1)},
+        "ppda":  {team1: ppda(team1, team2), team2: ppda(team2, team1)},
     }
 
 
 def get_defensive_actions(match_id: int) -> dict:
     events, team1, team2, _ = _load(match_id)
-    events = events.copy()
     reg = events[events["period"] != 5]
 
     results = []
@@ -489,7 +531,6 @@ def get_defensive_actions(match_id: int) -> dict:
             results.append({"team": r["team"], "type": event_type.lower(),
                              "x": float(r["x"]), "y": float(r["y"])})
 
-    # tackles from duel events
     if "duel_type" in reg.columns:
         tackles = reg[(reg["type"] == "Duel") & (reg["duel_type"] == "Tackle")].copy()
     else:
@@ -513,17 +554,16 @@ def get_defensive_actions(match_id: int) -> dict:
 
 def get_set_pieces(match_id: int) -> dict:
     events, team1, team2, _ = _load(match_id)
-    events = events.copy()
     reg = events[events["period"] != 5]
 
-    corners = reg[(reg["type"] == "Pass") & (reg["pass_type"] == "Corner")].copy() \
+    corners  = reg[(reg["type"] == "Pass") & (reg["pass_type"] == "Corner")].copy() \
         if "pass_type" in reg.columns else pd.DataFrame()
     fk_passes = reg[(reg["type"] == "Pass") & (reg["pass_type"] == "Free Kick")].copy() \
         if "pass_type" in reg.columns else pd.DataFrame()
-    fk_shots = reg[(reg["type"] == "Shot") & (reg["shot_type"] == "Free Kick")].copy() \
+    fk_shots  = reg[(reg["type"] == "Shot") & (reg["shot_type"] == "Free Kick")].copy() \
         if "shot_type" in reg.columns else pd.DataFrame()
-    sp_shots = reg[(reg["type"] == "Shot") &
-                   (reg["shot_type"].isin(["Free Kick", "Corner"]))].copy() \
+    sp_shots  = reg[(reg["type"] == "Shot") &
+                    (reg["shot_type"].isin(["Free Kick", "Corner"]))].copy() \
         if "shot_type" in reg.columns else pd.DataFrame()
 
     def to_locations(df, extra=None):
@@ -546,17 +586,17 @@ def get_set_pieces(match_id: int) -> dict:
             rows.append(d)
         return rows
 
-    sp_xg = sp_shots.groupby("team")["shot_statsbomb_xg"].sum().round(2) if not sp_shots.empty else pd.Series()
+    sp_xg   = sp_shots.groupby("team")["shot_statsbomb_xg"].sum().round(2) if not sp_shots.empty else pd.Series()
     sp_goals = sp_shots[sp_shots["shot_outcome"] == "Goal"].groupby("team")["id"].count() if not sp_shots.empty else pd.Series()
 
     counts = {}
     for team in [team1, team2]:
         counts[team] = {
-            "corners": int((corners["team"] == team).sum()) if not corners.empty else 0,
+            "corners":  int((corners["team"] == team).sum())   if not corners.empty  else 0,
             "fkPasses": int((fk_passes["team"] == team).sum()) if not fk_passes.empty else 0,
-            "fkShots": int((fk_shots["team"] == team).sum()) if not fk_shots.empty else 0,
-            "spXg": float(sp_xg.get(team, 0)),
-            "spGoals": int(sp_goals.get(team, 0)),
+            "fkShots":  int((fk_shots["team"] == team).sum())  if not fk_shots.empty  else 0,
+            "spXg":     float(sp_xg.get(team, 0)),
+            "spGoals":  int(sp_goals.get(team, 0)),
         }
 
     fk_shot_list = []
@@ -573,17 +613,15 @@ def get_set_pieces(match_id: int) -> dict:
         "team1": team1, "team2": team2,
         "corners": to_locations(corners),
         "fkShots": fk_shot_list,
-        "counts": counts,
+        "counts":  counts,
     }
 
 
 def get_momentum(match_id: int) -> dict:
     events, team1, team2, _ = _load(match_id)
-    events = events.copy()
     reg = events[events["period"] != 5]
 
-    # 3-minute bins across full match duration
-    max_min = int(reg["minute"].max()) + 1
+    max_min  = int(reg["minute"].max()) + 1
     bin_size = 3
     all_bins = list(range(0, max_min + bin_size, bin_size))
 
@@ -597,7 +635,6 @@ def get_momentum(match_id: int) -> dict:
         t = team_bins[team_bins["team"] == team].set_index("bin")["id"]
         raw[team] = [{"minute": b, "actions": int(t.get(b, 0))} for b in all_bins]
 
-    # 5-bin Gaussian-ish smoothing (time-series-analysis skill: rolling window)
     def smooth(values, window=5):
         out = []
         for i, v in enumerate(values):
@@ -609,7 +646,7 @@ def get_momentum(match_id: int) -> dict:
     result = {}
     for team in [team1, team2]:
         vals = [d["actions"] for d in raw[team]]
-        sm = smooth(vals)
+        sm   = smooth(vals)
         result[team] = [{"minute": raw[team][i]["minute"],
                           "actions": raw[team][i]["actions"], "smoothed": sm[i]}
                          for i in range(len(raw[team]))]

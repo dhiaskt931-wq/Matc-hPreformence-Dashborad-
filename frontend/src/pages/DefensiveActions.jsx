@@ -51,7 +51,7 @@ export default function DefensiveActions() {
             {/* filters */}
             <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 12, alignItems: 'center' }}>
               <span style={{ color: 'var(--muted)', fontSize: 10, marginRight: 4 }}>TEAM</span>
-              {['all', ...teams].map((t, i) => (
+              {['all', ...teams].map((t) => (
                 <button key={t} onClick={() => setActiveTeam(t)} style={{
                   padding: '4px 10px', borderRadius: 5, border: 'none', cursor: 'pointer', fontSize: 11,
                   background: activeTeam === t ? (t === team1 ? '#5b9bd5' : t === team2 ? '#d94f5c' : 'var(--text)') : 'var(--card)',

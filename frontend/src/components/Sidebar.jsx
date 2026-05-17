@@ -1,7 +1,8 @@
+import { memo, useState, useEffect } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { useState } from 'react';
 import { useMatch } from '../context/MatchContext';
 import { abbrev } from '../utils/teamAbbrev';
+import './Sidebar.css';
 
 /* ── Icons ─────────────────────────────────────────────────────────────── */
 const Icon = ({ d, size = 16, style }) => (
@@ -27,24 +28,25 @@ const IC = {
   chevLeft:   'M15 18l-6-6 6-6',
   chevRight:  'M9 18l6-6-6-6',
   bolt:       'M13 2L3 14h9l-1 8 10-12h-9l1-8z',
+  menu:       ['M3 12h18', 'M3 6h18', 'M3 18h18'],
 };
 
 const NAV = [
   {
     group: 'Match',
     items: [
-      { path: '/',              icon: 'overview',   label: 'Overview',      feature: 'match-overview' },
-      { path: '/xg-timeline',   icon: 'xg',         label: 'xG Timeline',   feature: 'match-overview' },
-      { path: '/shot-analysis', icon: 'shots',      label: 'Shot Analysis', feature: 'shot-analysis' },
-      { path: '/pass-network',  icon: 'passes',     label: 'Pass Network',  feature: 'pass-network' },
+      { path: '/',              icon: 'overview',   label: 'Overview',       feature: 'match-overview' },
+      { path: '/xg-timeline',   icon: 'xg',         label: 'xG Timeline',    feature: 'match-overview' },
+      { path: '/shot-analysis', icon: 'shots',      label: 'Shot Analysis',  feature: 'shot-analysis' },
+      { path: '/pass-network',  icon: 'passes',     label: 'Pass Network',   feature: 'pass-network' },
     ],
   },
   {
     group: 'Players',
     items: [
-      { path: '/heatmaps',  icon: 'heatmaps',   label: 'Heatmaps',        feature: 'heatmap' },
-      { path: '/top-stats', icon: 'performers', label: 'Top Performers',  feature: 'player-stats' },
-      { path: '/duels',     icon: 'duels',      label: 'Duels & Pressure',feature: 'pressure' },
+      { path: '/heatmaps',  icon: 'heatmaps',   label: 'Heatmaps',         feature: 'heatmap' },
+      { path: '/top-stats', icon: 'performers', label: 'Top Performers',   feature: 'player-stats' },
+      { path: '/duels',     icon: 'duels',      label: 'Duels & Pressure', feature: 'pressure' },
     ],
   },
   {
@@ -70,83 +72,57 @@ function LockIcon() {
 }
 
 /* ── Nav item ──────────────────────────────────────────────────────────── */
-function NavItem({ path, icon, label, collapsed, featureStatus }) {
-  const [hovered, setHovered] = useState(false);
+const NavItem = memo(function NavItem({ path, icon, label, collapsed, featureStatus }) {
   const isUnavailable = featureStatus === 'unavailable';
-  const isPartial = featureStatus === 'partial';
+  const isPartial     = featureStatus === 'partial';
+
+  const sizeClass = collapsed ? 'nav-item--collapsed' : 'nav-item--expanded';
 
   return (
     <NavLink
       to={path}
       end={path === '/'}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-      style={({ isActive }) => ({
-        display: 'flex',
-        alignItems: 'center',
-        gap: 10,
-        margin: collapsed ? '1px 6px' : '1px 8px',
-        padding: collapsed ? '9px 0' : '8px 10px',
-        justifyContent: collapsed ? 'center' : 'flex-start',
-        borderRadius: 8,
-        textDecoration: 'none',
-        fontSize: 13,
-        fontWeight: isActive ? 600 : 400,
-        color: isUnavailable
-          ? 'var(--muted)'
-          : isActive
-          ? 'var(--text)'
-          : hovered
-          ? 'var(--text-dim)'
-          : 'var(--muted)',
-        background: isUnavailable
-          ? 'transparent'
-          : isActive
-          ? 'rgba(96,165,250,0.12)'
-          : hovered
-          ? 'rgba(255,255,255,0.05)'
-          : 'transparent',
-        transition: 'all 160ms ease',
-        cursor: isUnavailable ? 'not-allowed' : 'pointer',
-        whiteSpace: 'nowrap',
-        letterSpacing: '-0.01em',
-        opacity: isUnavailable ? 0.35 : 1,
-        pointerEvents: isUnavailable ? 'none' : undefined,
-      })}
+      className={({ isActive }) =>
+        ['nav-item', sizeClass,
+          isUnavailable ? 'nav-item--unavailable' : '',
+          isActive && !isUnavailable ? 'nav-item--active' : '',
+        ].filter(Boolean).join(' ')
+      }
     >
       {({ isActive }) => (
         <>
-          <span style={{
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            width: 28, height: 28, borderRadius: 7, flexShrink: 0,
-            background: isActive && !isUnavailable ? 'rgba(96,165,250,0.18)' : 'transparent',
-            color: isActive && !isUnavailable ? 'var(--arg)' : 'inherit',
-            transition: 'all 160ms ease',
-          }}>
+          <span className={`nav-item__icon${isActive && !isUnavailable ? ' nav-item__icon--active' : ''}`}>
             <Icon d={IC[icon]} size={15} />
           </span>
           {!collapsed && label}
           {isActive && !collapsed && !isUnavailable && (
-            <span style={{
-              marginLeft: 'auto',
-              width: 5, height: 5, borderRadius: '50%',
-              background: isPartial ? '#fbbf24' : 'var(--arg)',
-              boxShadow: isPartial ? '0 0 6px #fbbf24' : '0 0 6px var(--arg)',
-              flexShrink: 0,
-            }} />
+            <span className={`nav-item__dot ${isPartial ? 'nav-item__dot--partial' : 'nav-item__dot--full'}`} />
           )}
           {!collapsed && isUnavailable && <LockIcon />}
         </>
       )}
     </NavLink>
   );
-}
+});
 
 /* ── Sidebar ───────────────────────────────────────────────────────────── */
 export default function Sidebar() {
-  const [collapsed, setCollapsed] = useState(false);
+  const [isMobile, setIsMobile]   = useState(window.innerWidth < 768);
+  const [collapsed, setCollapsed] = useState(window.innerWidth < 768);
   const { selected, features } = useMatch();
   const navigate = useNavigate();
+
+  useEffect(() => {
+    const onResize = () => {
+      const mobile = window.innerWidth < 768;
+      setIsMobile(mobile);
+      if (mobile) setCollapsed(true);
+    };
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
+
+  const handleCollapseToggle = () => setCollapsed(prev => !prev);
 
   const sourceLabel = features?.source
     ? features.source === 'statsbomb'
@@ -156,217 +132,234 @@ export default function Sidebar() {
       : features.source
     : 'StatsBomb Open Data';
 
-  return (
-    <aside style={{
-      width: collapsed ? 60 : 228,
-      minHeight: '100vh',
-      height: '100vh',
-      position: 'sticky',
-      top: 0,
-      flexShrink: 0,
-      display: 'flex',
-      flexDirection: 'column',
-      overflow: 'hidden',
-      transition: 'width 0.22s cubic-bezier(0.4,0,0.2,1)',
-      /* layered background: top-layer glass over deep navy */
-      background: 'linear-gradient(180deg, rgba(10,14,30,0.97) 0%, rgba(6,9,20,0.99) 100%)',
-      backdropFilter: 'blur(24px) saturate(180%)',
-      WebkitBackdropFilter: 'blur(24px) saturate(180%)',
-      borderRight: '1px solid rgba(255,255,255,0.07)',
-    }}>
+  const sidebarStyle = isMobile
+    ? {
+        position: 'fixed', zIndex: 100, height: '100vh', top: 0, left: 0,
+        width: collapsed ? 0 : 228, overflow: 'hidden',
+        transition: 'width 0.22s cubic-bezier(0.4,0,0.2,1)',
+        background: 'linear-gradient(180deg, rgba(10,14,30,0.97) 0%, rgba(6,9,20,0.99) 100%)',
+        backdropFilter: 'blur(24px) saturate(180%)',
+        WebkitBackdropFilter: 'blur(24px) saturate(180%)',
+        borderRight: '1px solid rgba(255,255,255,0.07)',
+        display: 'flex', flexDirection: 'column',
+      }
+    : {
+        width: collapsed ? 60 : 228,
+        minHeight: '100vh', height: '100vh',
+        position: 'sticky', top: 0, flexShrink: 0,
+        display: 'flex', flexDirection: 'column',
+        overflow: 'hidden',
+        transition: 'width 0.22s cubic-bezier(0.4,0,0.2,1)',
+        background: 'linear-gradient(180deg, rgba(10,14,30,0.97) 0%, rgba(6,9,20,0.99) 100%)',
+        backdropFilter: 'blur(24px) saturate(180%)',
+        WebkitBackdropFilter: 'blur(24px) saturate(180%)',
+        borderRight: '1px solid rgba(255,255,255,0.07)',
+      };
 
-      {/* ── Logo bar ──────────────────────────────────────────────────── */}
-      <div style={{
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: collapsed ? 'center' : 'space-between',
-        padding: collapsed ? '16px 0' : '16px 14px 16px 16px',
-        minHeight: 60,
-        borderBottom: '1px solid rgba(255,255,255,0.06)',
-      }}>
-        {/* Brand */}
+  return (
+    <>
+      {/* Mobile backdrop */}
+      {isMobile && !collapsed && (
+        <div
+          onClick={() => setCollapsed(true)}
+          style={{
+            position: 'fixed', inset: 0,
+            background: 'rgba(0,0,0,0.6)',
+            zIndex: 99,
+          }}
+        />
+      )}
+
+      <aside style={sidebarStyle}>
+
+        {/* ── Logo bar ──────────────────────────────────────────────────── */}
         <div style={{
-          display: 'flex', alignItems: 'center', gap: 10,
-          opacity: collapsed ? 0 : 1,
-          width: collapsed ? 0 : 'auto',
-          overflow: 'hidden',
-          transition: 'opacity 0.18s ease, width 0.22s ease',
-          whiteSpace: 'nowrap',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: collapsed ? 'center' : 'space-between',
+          padding: collapsed ? '16px 0' : '16px 14px 16px 16px',
+          minHeight: 60,
+          borderBottom: '1px solid rgba(255,255,255,0.06)',
         }}>
-          {/* Logo mark */}
           <div style={{
-            width: 32, height: 32, borderRadius: 9, flexShrink: 0,
-            background: 'linear-gradient(135deg, #60a5fa 0%, #3b82f6 60%, #1d4ed8 100%)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            boxShadow: '0 0 0 1px rgba(96,165,250,0.3), 0 4px 14px rgba(59,130,246,0.35)',
+            display: 'flex', alignItems: 'center', gap: 10,
+            opacity: collapsed ? 0 : 1,
+            width: collapsed ? 0 : 'auto',
+            overflow: 'hidden',
+            transition: 'opacity 0.18s ease, width 0.22s ease',
+            whiteSpace: 'nowrap',
           }}>
-            <Icon d={IC.bolt} size={14} style={{ stroke: 'white', strokeWidth: 2 }} />
-          </div>
-          <div>
-            <div style={{ color: 'var(--text)', fontWeight: 700, fontSize: 13, letterSpacing: '-0.02em', lineHeight: 1.2 }}>
-              Football Lab
+            <div style={{
+              width: 32, height: 32, borderRadius: 9, flexShrink: 0,
+              background: 'linear-gradient(135deg, #60a5fa 0%, #3b82f6 60%, #1d4ed8 100%)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              boxShadow: '0 0 0 1px rgba(96,165,250,0.3), 0 4px 14px rgba(59,130,246,0.35)',
+            }}>
+              <Icon d={IC.bolt} size={14} style={{ stroke: 'white', strokeWidth: 2 }} />
             </div>
-            <div style={{ color: 'var(--muted)', fontSize: 9, letterSpacing: '0.08em', textTransform: 'uppercase', marginTop: 1 }}>
-              Analytics
+            <div>
+              <div style={{ color: 'var(--text)', fontWeight: 700, fontSize: 13, letterSpacing: '-0.02em', lineHeight: 1.2 }}>
+                Football Lab
+              </div>
+              <div style={{ color: 'var(--muted)', fontSize: 9, letterSpacing: '0.08em', textTransform: 'uppercase', marginTop: 1 }}>
+                Analytics
+              </div>
             </div>
           </div>
+
+          <button
+            className="sidebar-collapse-btn"
+            onClick={handleCollapseToggle}
+            aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+            aria-expanded={!collapsed}
+          >
+            <Icon d={collapsed ? IC.chevRight : IC.chevLeft} size={13} />
+          </button>
         </div>
 
-        {/* Collapse / expand button */}
-        <button
-          onClick={() => setCollapsed(c => !c)}
-          title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-          style={{
-            width: 28, height: 28, borderRadius: 7,
-            background: 'rgba(255,255,255,0.05)',
-            border: '1px solid rgba(255,255,255,0.07)',
-            cursor: 'pointer', flexShrink: 0,
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            color: 'var(--muted)',
+        {/* ── Select game CTA ───────────────────────────────────────────── */}
+        <div style={{ padding: collapsed ? '10px 6px' : '10px 10px', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+          <NavLink to="/games" style={({ isActive }) => ({
+            display: 'flex', alignItems: 'center',
+            gap: 8,
+            padding: collapsed ? '9px 0' : '9px 12px',
+            justifyContent: collapsed ? 'center' : 'flex-start',
+            borderRadius: 9,
+            textDecoration: 'none',
+            fontWeight: 600,
+            fontSize: 12,
+            letterSpacing: '-0.01em',
+            cursor: 'pointer',
             transition: 'all 160ms ease',
-          }}
-          onMouseEnter={e => {
-            e.currentTarget.style.background = 'rgba(255,255,255,0.10)';
-            e.currentTarget.style.color = 'var(--text)';
-          }}
-          onMouseLeave={e => {
-            e.currentTarget.style.background = 'rgba(255,255,255,0.05)';
-            e.currentTarget.style.color = 'var(--muted)';
+            background: isActive
+              ? 'linear-gradient(135deg, rgba(96,165,250,0.18), rgba(59,130,246,0.10))'
+              : 'linear-gradient(135deg, rgba(96,165,250,0.10), rgba(59,130,246,0.06))',
+            color: isActive ? 'var(--arg)' : '#93c5fd',
+            border: `1px solid ${isActive ? 'rgba(96,165,250,0.30)' : 'rgba(96,165,250,0.15)'}`,
+            boxShadow: isActive ? '0 0 16px rgba(96,165,250,0.12)' : 'none',
+          })}>
+            <Icon d={IC.games} size={14} />
+            {!collapsed && <span>Select Game</span>}
+            {!collapsed && <span style={{ marginLeft: 'auto', fontSize: 10, opacity: 0.6 }}>↗</span>}
+          </NavLink>
+
+          {!collapsed && selected && (
+            <button
+              onClick={() => navigate('/')}
+              style={{
+                marginTop: 8, width: '100%',
+                padding: '8px 12px', borderRadius: 9,
+                background: 'rgba(255,255,255,0.03)',
+                border: '1px solid rgba(255,255,255,0.07)',
+                cursor: 'pointer', textAlign: 'left',
+                transition: 'all 160ms ease',
+              }}
+              onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.06)'; }}
+              onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.03)'; }}
+            >
+              <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.10em', textTransform: 'uppercase', color: 'var(--muted)', marginBottom: 5 }}>
+                Live View
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <span style={{ fontSize: 12, fontWeight: 800, color: 'var(--team1)', letterSpacing: '0.04em' }}>
+                  {abbrev(selected.home_team)}
+                </span>
+                <span style={{
+                  fontSize: 11, fontWeight: 700, color: 'var(--text)',
+                  background: 'rgba(255,255,255,0.08)',
+                  border: '1px solid rgba(255,255,255,0.10)',
+                  borderRadius: 5, padding: '1px 7px',
+                  letterSpacing: '0.06em', fontVariantNumeric: 'tabular-nums',
+                }}>
+                  {selected.home_score} – {selected.away_score}
+                </span>
+                <span style={{ fontSize: 12, fontWeight: 800, color: 'var(--team2)', letterSpacing: '0.04em' }}>
+                  {abbrev(selected.away_team)}
+                </span>
+              </div>
+              <div style={{ fontSize: 10, color: 'var(--muted)', marginTop: 4, letterSpacing: '-0.01em' }}>
+                {selected.competition_name}
+              </div>
+            </button>
+          )}
+        </div>
+
+        {/* ── Navigation ────────────────────────────────────────────────── */}
+        <nav style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', paddingTop: 6, paddingBottom: 6 }}>
+          {NAV.map(({ group, items }, gi) => (
+            <div key={group} style={{ marginBottom: gi < NAV.length - 1 ? 4 : 0 }}>
+              {!collapsed && (
+                <div style={{
+                  padding: '12px 18px 4px',
+                  fontSize: 9, fontWeight: 700,
+                  letterSpacing: '0.14em', textTransform: 'uppercase',
+                  color: 'rgba(255,255,255,0.22)',
+                  userSelect: 'none',
+                }}>
+                  {group}
+                </div>
+              )}
+              {collapsed && gi > 0 && (
+                <div style={{ height: 1, background: 'rgba(255,255,255,0.05)', margin: '6px 12px' }} />
+              )}
+              {items.map(({ path, icon, label, feature }) => {
+                const featureStatus = features?.features?.[feature];
+                return (
+                  <NavItem
+                    key={path}
+                    path={path}
+                    icon={icon}
+                    label={label}
+                    collapsed={collapsed}
+                    featureStatus={featureStatus}
+                  />
+                );
+              })}
+            </div>
+          ))}
+        </nav>
+
+        {/* ── Footer ────────────────────────────────────────────────────── */}
+        <div style={{
+          borderTop: '1px solid rgba(255,255,255,0.06)',
+          padding: collapsed ? '12px 0' : '12px 16px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: collapsed ? 'center' : 'flex-start',
+          gap: 8,
+        }}>
+          <div style={{
+            width: 6, height: 6, borderRadius: '50%', flexShrink: 0,
+            background: '#34d399',
+            boxShadow: '0 0 6px rgba(52,211,153,0.7)',
+          }} />
+          {!collapsed && (
+            <span style={{ fontSize: 10, color: 'var(--muted)', letterSpacing: '0.02em', whiteSpace: 'nowrap' }}>
+              {sourceLabel}
+            </span>
+          )}
+        </div>
+      </aside>
+
+      {/* Mobile floating hamburger */}
+      {isMobile && collapsed && (
+        <button
+          onClick={handleCollapseToggle}
+          aria-label="Expand sidebar"
+          style={{
+            position: 'fixed', bottom: 20, left: 16, zIndex: 101,
+            width: 44, height: 44, borderRadius: '50%',
+            background: 'rgba(96,165,250,0.15)',
+            border: '1px solid rgba(96,165,250,0.30)',
+            cursor: 'pointer',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            color: 'var(--arg)',
+            boxShadow: '0 4px 14px rgba(59,130,246,0.35)',
           }}
         >
-          <Icon d={collapsed ? IC.chevRight : IC.chevLeft} size={13} />
+          <Icon d={IC.menu} size={18} />
         </button>
-      </div>
-
-      {/* ── Select game CTA ───────────────────────────────────────────── */}
-      <div style={{ padding: collapsed ? '10px 6px' : '10px 10px', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
-        <NavLink to="/games" style={({ isActive }) => ({
-          display: 'flex', alignItems: 'center',
-          gap: 8,
-          padding: collapsed ? '9px 0' : '9px 12px',
-          justifyContent: collapsed ? 'center' : 'flex-start',
-          borderRadius: 9,
-          textDecoration: 'none',
-          fontWeight: 600,
-          fontSize: 12,
-          letterSpacing: '-0.01em',
-          cursor: 'pointer',
-          transition: 'all 160ms ease',
-          background: isActive
-            ? 'linear-gradient(135deg, rgba(96,165,250,0.18), rgba(59,130,246,0.10))'
-            : 'linear-gradient(135deg, rgba(96,165,250,0.10), rgba(59,130,246,0.06))',
-          color: isActive ? 'var(--arg)' : '#93c5fd',
-          border: `1px solid ${isActive ? 'rgba(96,165,250,0.30)' : 'rgba(96,165,250,0.15)'}`,
-          boxShadow: isActive ? '0 0 16px rgba(96,165,250,0.12)' : 'none',
-        })}>
-          <Icon d={IC.games} size={14} />
-          {!collapsed && <span>Select Game</span>}
-          {!collapsed && (
-            <span style={{ marginLeft: 'auto', fontSize: 10, opacity: 0.6 }}>↗</span>
-          )}
-        </NavLink>
-
-        {/* Current match pill */}
-        {!collapsed && selected && (
-          <button
-            onClick={() => navigate('/')}
-            style={{
-              marginTop: 8, width: '100%',
-              padding: '8px 12px', borderRadius: 9,
-              background: 'rgba(255,255,255,0.03)',
-              border: '1px solid rgba(255,255,255,0.07)',
-              cursor: 'pointer', textAlign: 'left',
-              transition: 'all 160ms ease',
-            }}
-            onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.06)'; }}
-            onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.03)'; }}
-          >
-            <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.10em', textTransform: 'uppercase', color: 'var(--muted)', marginBottom: 5 }}>
-              Live View
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <span style={{ fontSize: 12, fontWeight: 800, color: 'var(--arg)', letterSpacing: '0.04em' }}>
-                {abbrev(selected.home_team)}
-              </span>
-              <span style={{
-                fontSize: 11, fontWeight: 700, color: 'var(--text)',
-                background: 'rgba(255,255,255,0.08)',
-                border: '1px solid rgba(255,255,255,0.10)',
-                borderRadius: 5, padding: '1px 7px',
-                letterSpacing: '0.06em', fontVariantNumeric: 'tabular-nums',
-              }}>
-                {selected.home_score} – {selected.away_score}
-              </span>
-              <span style={{ fontSize: 12, fontWeight: 800, color: 'var(--fra)', letterSpacing: '0.04em' }}>
-                {abbrev(selected.away_team)}
-              </span>
-            </div>
-            <div style={{ fontSize: 10, color: 'var(--muted)', marginTop: 4, letterSpacing: '-0.01em' }}>
-              {selected.competition_name}
-            </div>
-          </button>
-        )}
-      </div>
-
-      {/* ── Navigation ────────────────────────────────────────────────── */}
-      <nav style={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', paddingTop: 6, paddingBottom: 6 }}>
-        {NAV.map(({ group, items }, gi) => (
-          <div key={group} style={{ marginBottom: gi < NAV.length - 1 ? 4 : 0 }}>
-
-            {/* Group label */}
-            {!collapsed && (
-              <div style={{
-                padding: '12px 18px 4px',
-                fontSize: 9, fontWeight: 700,
-                letterSpacing: '0.14em', textTransform: 'uppercase',
-                color: 'rgba(255,255,255,0.22)',
-                userSelect: 'none',
-              }}>
-                {group}
-              </div>
-            )}
-            {collapsed && gi > 0 && (
-              <div style={{ height: 1, background: 'rgba(255,255,255,0.05)', margin: '6px 12px' }} />
-            )}
-
-            {items.map(({ path, icon, label, feature }) => {
-              const featureStatus = features?.features?.[feature];
-              return (
-                <NavItem
-                  key={path}
-                  path={path}
-                  icon={icon}
-                  label={label}
-                  collapsed={collapsed}
-                  featureStatus={featureStatus}
-                />
-              );
-            })}
-          </div>
-        ))}
-      </nav>
-
-      {/* ── Footer ────────────────────────────────────────────────────── */}
-      <div style={{
-        borderTop: '1px solid rgba(255,255,255,0.06)',
-        padding: collapsed ? '12px 0' : '12px 16px',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: collapsed ? 'center' : 'flex-start',
-        gap: 8,
-      }}>
-        {/* Status dot */}
-        <div style={{
-          width: 6, height: 6, borderRadius: '50%', flexShrink: 0,
-          background: '#34d399',
-          boxShadow: '0 0 6px rgba(52,211,153,0.7)',
-        }} />
-        {!collapsed && (
-          <span style={{ fontSize: 10, color: 'var(--muted)', letterSpacing: '0.02em', whiteSpace: 'nowrap' }}>
-            {sourceLabel}
-          </span>
-        )}
-      </div>
-    </aside>
+      )}
+    </>
   );
 }

@@ -1,3 +1,4 @@
+// eslint-disable-next-line react-refresh/only-export-components
 export const DATA_SOURCES = {
   STATSBOMB: 'statsbomb',
   UNDERSTAT: 'understat',

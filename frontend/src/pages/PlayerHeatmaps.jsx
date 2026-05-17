@@ -6,7 +6,7 @@ import PageShell, { EventDataRequired } from '../components/PageShell';
 import GridHeatmap from '../components/GridHeatmap';
 
 
-function PlayerSelect({ players, selected, onChange, color }) {
+function PlayerSelect({ players, selected, onChange }) {
   const sorted = Object.entries(players).sort((a, b) => b[1].count - a[1].count);
   return (
     <select value={selected} onChange={e => onChange(e.target.value)} style={{

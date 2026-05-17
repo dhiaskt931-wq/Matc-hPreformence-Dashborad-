@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useMatch } from '../context/MatchContext';
+import { useDebounce } from '../hooks/useDebounce';
 import {
   fetchCompetitions, fetchMatchesList,
   fetchLiveLeagues, fetchLiveRecent, fetchLiveScoreboard,
@@ -104,11 +105,14 @@ function StatsBombTab({ onSelect }) {
   const [comps, setComps]               = useState([]);
   const [loading, setLoading]           = useState(true);
   const [searchInput, setSearchInput]   = useState('');
-  const [search, setSearch]             = useState('');
-  const [activeComp, setActiveComp]     = useState(null);
+  const [activeComp, setActiveComp]     = useState(() => {
+    try { return JSON.parse(sessionStorage.getItem('sb_activeComp') || 'null'); } catch { return null; }
+  });
   const [activeSeason, setActiveSeason] = useState(null);
   const [matches, setMatches]           = useState([]);
   const [matchLoading, setMatchLoading] = useState(false);
+
+  const debouncedSearch = useDebounce(searchInput, 250);
 
   useEffect(() => {
     fetchCompetitions()
@@ -118,6 +122,7 @@ function StatsBombTab({ onSelect }) {
 
   useEffect(() => {
     if (!activeSeason) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setMatchLoading(true);
     setMatches([]);
     fetchMatchesList(activeSeason.competition_id, activeSeason.season_id)
@@ -125,16 +130,11 @@ function StatsBombTab({ onSelect }) {
       .catch(() => setMatchLoading(false));
   }, [activeSeason]);
 
-  useEffect(() => {
-    const timer = setTimeout(() => setSearch(searchInput), 300);
-    return () => clearTimeout(timer);
-  }, [searchInput]);
-
   const filtered = useMemo(() => {
-    if (!search.trim()) return comps;
-    const q = search.toLowerCase();
+    if (!debouncedSearch.trim()) return comps;
+    const q = debouncedSearch.toLowerCase();
     return comps.filter(c => c.competition_name.toLowerCase().includes(q) || c.country_name?.toLowerCase().includes(q));
-  }, [comps, search]);
+  }, [comps, debouncedSearch]);
 
   const groups = useMemo(() => groupBy(filtered, 'country_name'), [filtered]);
 
@@ -144,15 +144,29 @@ function StatsBombTab({ onSelect }) {
       {/* Competition */}
       <PanelCard>
         <PanelHeader>
-          <input
-            value={searchInput} onChange={e => setSearchInput(e.target.value)}
-            placeholder="Search competitions…"
-            style={{
-              width: '100%', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border)',
-              borderRadius: 7, padding: '7px 10px', color: 'var(--text)', fontSize: 12,
-              outline: 'none', fontFamily: 'inherit',
-            }}
-          />
+          <div style={{ position: 'relative' }}>
+            <input
+              value={searchInput} onChange={e => setSearchInput(e.target.value)}
+              placeholder="Search competitions…"
+              style={{
+                width: '100%', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border)',
+                borderRadius: 7, padding: '7px 10px', color: 'var(--text)', fontSize: 12,
+                outline: 'none', fontFamily: 'inherit',
+                paddingRight: searchInput.length > 0 ? 28 : 10,
+              }}
+            />
+            {searchInput.length > 0 && (
+              <button
+                onClick={() => setSearchInput('')}
+                aria-label="Clear search"
+                style={{
+                  position: 'absolute', right: 7, top: '50%', transform: 'translateY(-50%)',
+                  background: 'none', border: 'none', cursor: 'pointer',
+                  color: 'var(--muted)', fontSize: 14, lineHeight: 1, padding: 2,
+                }}
+              >×</button>
+            )}
+          </div>
         </PanelHeader>
         <PanelBody>
           {loading
@@ -163,7 +177,7 @@ function StatsBombTab({ onSelect }) {
                   {items.map(c => {
                     const isActive = activeComp?.competition_name === c.competition_name;
                     return (
-                      <button key={c.competition_name} onClick={() => { setActiveComp(c); setActiveSeason(null); setMatches([]); }} style={{
+                      <button key={c.competition_name} onClick={() => { const next = c; setActiveComp(next); sessionStorage.setItem('sb_activeComp', JSON.stringify(next)); setActiveSeason(null); setMatches([]); }} style={{
                         width: '100%', textAlign: 'left', padding: '7px 9px', borderRadius: 7, border: 'none',
                         cursor: 'pointer', fontSize: 12, fontWeight: 500, transition: 'all 160ms ease',
                         background: isActive ? 'rgba(96,165,250,0.12)' : 'transparent',
@@ -259,6 +273,53 @@ function StatsBombTab({ onSelect }) {
   );
 }
 
+/* ── ESPN match row / section (outside ESPNTab to avoid re-creation on render) */
+function ESPNMatchRow({ m, onSelect }) {
+  return (
+    <button
+      onClick={() => onSelect({ ...m, matchId: m.match_id, source: 'espn', competition_name: m.league_name })}
+      style={{
+        width: '100%', textAlign: 'left', padding: '10px 12px', marginBottom: 5,
+        borderRadius: 8, cursor: 'pointer', background: 'rgba(255,255,255,0.03)',
+        border: '1px solid var(--border)', transition: 'all 160ms ease', fontFamily: 'inherit',
+      }}
+      onMouseEnter={e => { e.currentTarget.style.background = 'rgba(52,211,153,0.05)'; e.currentTarget.style.borderColor = 'rgba(52,211,153,0.22)'; }}
+      onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.03)'; e.currentTarget.style.borderColor = 'var(--border)'; }}
+    >
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+        <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text)' }}>
+          {m.home_team}
+          <span style={{ color: 'var(--muted)', margin: '0 8px', fontVariantNumeric: 'tabular-nums', fontWeight: 700 }}>
+            {(m.is_final || m.is_live) ? `${m.home_score} – ${m.away_score}` : 'vs'}
+          </span>
+          {m.away_team}
+        </span>
+        {m.is_live && <LiveDot />}
+        {m.is_final && !m.is_live && <span style={{ fontSize: 10, color: 'var(--muted)', background: 'rgba(255,255,255,0.06)', padding: '1px 6px', borderRadius: 4 }}>FT</span>}
+      </div>
+      <div style={{ fontSize: 10, color: 'var(--muted)', display: 'flex', gap: 6 }}>
+        {m.is_live
+          ? <span style={{ color: '#f87171' }}>{m.clock}{m.period ? ` · ${m.period}'` : ''}</span>
+          : <span>{fmtDate(m.match_date)}</span>
+        }
+        {m.venue && <><span>·</span><span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 200 }}>{m.venue}</span></>}
+      </div>
+    </button>
+  );
+}
+
+function ESPNMatchSection({ title, items, accent, onSelect }) {
+  if (!items.length) return null;
+  return (
+    <div style={{ marginBottom: 14 }}>
+      <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: accent, marginBottom: 6, display: 'flex', alignItems: 'center', gap: 6 }}>
+        {title} <span style={{ fontWeight: 500, color: 'var(--muted)' }}>· {items.length}</span>
+      </div>
+      {items.map(m => <ESPNMatchRow key={m.match_id} m={m} onSelect={onSelect} />)}
+    </div>
+  );
+}
+
 /* ── ESPN live tab ───────────────────────────────────────────────────────── */
 function ESPNTab({ onSelect }) {
   const [leagues, setLeagues]           = useState([]);
@@ -272,6 +333,7 @@ function ESPNTab({ onSelect }) {
 
   useEffect(() => {
     if (!activeLeague) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setMatchLoading(true);
     setMatches([]);
     const load =
@@ -285,52 +347,6 @@ function ESPNTab({ onSelect }) {
   const liveMatches = matches.filter(m => m.is_live);
   const doneMatches = matches.filter(m => m.is_final && !m.is_live);
   const soonMatches = matches.filter(m => !m.is_final && !m.is_live);
-
-  function MatchRow({ m }) {
-    return (
-      <button
-        onClick={() => onSelect({ ...m, matchId: m.match_id, source: 'espn', competition_name: m.league_name })}
-        style={{
-          width: '100%', textAlign: 'left', padding: '10px 12px', marginBottom: 5,
-          borderRadius: 8, cursor: 'pointer', background: 'rgba(255,255,255,0.03)',
-          border: '1px solid var(--border)', transition: 'all 160ms ease', fontFamily: 'inherit',
-        }}
-        onMouseEnter={e => { e.currentTarget.style.background = 'rgba(52,211,153,0.05)'; e.currentTarget.style.borderColor = 'rgba(52,211,153,0.22)'; }}
-        onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.03)'; e.currentTarget.style.borderColor = 'var(--border)'; }}
-      >
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-          <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text)' }}>
-            {m.home_team}
-            <span style={{ color: 'var(--muted)', margin: '0 8px', fontVariantNumeric: 'tabular-nums', fontWeight: 700 }}>
-              {(m.is_final || m.is_live) ? `${m.home_score} – ${m.away_score}` : 'vs'}
-            </span>
-            {m.away_team}
-          </span>
-          {m.is_live && <LiveDot />}
-          {m.is_final && !m.is_live && <span style={{ fontSize: 10, color: 'var(--muted)', background: 'rgba(255,255,255,0.06)', padding: '1px 6px', borderRadius: 4 }}>FT</span>}
-        </div>
-        <div style={{ fontSize: 10, color: 'var(--muted)', display: 'flex', gap: 6 }}>
-          {m.is_live
-            ? <span style={{ color: '#f87171' }}>{m.clock}{m.period ? ` · ${m.period}'` : ''}</span>
-            : <span>{fmtDate(m.match_date)}</span>
-          }
-          {m.venue && <><span>·</span><span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 200 }}>{m.venue}</span></>}
-        </div>
-      </button>
-    );
-  }
-
-  function MatchSection({ title, items, accent }) {
-    if (!items.length) return null;
-    return (
-      <div style={{ marginBottom: 14 }}>
-        <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: accent, marginBottom: 6, display: 'flex', alignItems: 'center', gap: 6 }}>
-          {title} <span style={{ fontWeight: 500, color: 'var(--muted)' }}>· {items.length}</span>
-        </div>
-        {items.map(m => <MatchRow key={m.match_id} m={m} />)}
-      </div>
-    );
-  }
 
   return (
     <div style={{ display: 'grid', gridTemplateColumns: '200px 1fr', gap: 10, height: 580 }}>
@@ -394,9 +410,9 @@ function ESPNTab({ onSelect }) {
             ? <EmptyMsg>No matches found for this period</EmptyMsg>
             : (
               <>
-                <MatchSection title="Live now"  items={liveMatches} accent="#f87171" />
-                <MatchSection title="Final"     items={doneMatches} accent="var(--text-dim)" />
-                <MatchSection title="Upcoming"  items={soonMatches} accent="var(--arg)" />
+                <ESPNMatchSection title="Live now"  items={liveMatches} accent="#f87171"           onSelect={onSelect} />
+                <ESPNMatchSection title="Final"     items={doneMatches} accent="var(--text-dim)"   onSelect={onSelect} />
+                <ESPNMatchSection title="Upcoming"  items={soonMatches} accent="var(--arg)"        onSelect={onSelect} />
               </>
             )
           }

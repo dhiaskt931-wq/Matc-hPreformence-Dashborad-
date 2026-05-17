@@ -57,6 +57,7 @@ export default function XGFlow({ flow, team1, team2 }) {
       <div style={{ marginBottom: 12, paddingBottom: 12, borderBottom: '1px solid var(--border)' }}>
         <span className="label">xG Flow</span>
       </div>
+      <div aria-label={`xG flow chart — ${team1} vs ${team2}`} role="img">
       <ResponsiveContainer width="100%" height={210}>
         <LineChart data={data} margin={{ top: 6, right: 8, bottom: 12, left: -10 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
@@ -96,6 +97,7 @@ export default function XGFlow({ flow, team1, team2 }) {
           />
         </LineChart>
       </ResponsiveContainer>
+      </div>
     </div>
   );
 }

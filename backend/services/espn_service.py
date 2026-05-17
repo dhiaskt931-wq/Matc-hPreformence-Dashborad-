@@ -3,13 +3,26 @@ ESPN public API integration — no auth required.
 Provides live scores, recent results, and match stats for 20+ leagues.
 """
 
-import urllib.request
-import json
+import logging
+import time as _time
 from datetime import datetime, timedelta, timezone
 from concurrent.futures import ThreadPoolExecutor, as_completed
+
+import httpx
+
 from data_sources import cache as _cache
 
+logger = logging.getLogger(__name__)
+
 _BASE = "https://site.api.espn.com/apis/site/v2/sports/soccer"
+
+_client = httpx.Client(
+    timeout=httpx.Timeout(8.0),
+    headers={"User-Agent": "FootballDashboard/1.0"},
+)
+
+_MAX_RETRIES = 3
+_RETRY_DELAYS = (0.5, 1.0, 2.0)
 
 LEAGUES = [
     # Top 5 European
@@ -49,11 +62,35 @@ LEAGUES = [
 
 LEAGUE_MAP = {lg["id"]: lg for lg in LEAGUES}
 
+UNAVAILABLE = {"available": False, "source": "espn", "reason": "ESPN data source — deep analysis not available"}
+
 
 def _fetch(url: str) -> dict:
-    req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
-    with urllib.request.urlopen(req, timeout=10) as r:
-        return json.loads(r.read())
+    last_exc: Exception | None = None
+    for attempt in range(_MAX_RETRIES):
+        t0 = _time.monotonic()
+        try:
+            r = _client.get(url)
+            elapsed = round((_time.monotonic() - t0) * 1000)
+            logger.debug("ESPN GET %s → %d (%dms)", url, r.status_code, elapsed)
+            if r.status_code == 404:
+                return {}
+            if r.status_code in (429, 503) and attempt < _MAX_RETRIES - 1:
+                _time.sleep(_RETRY_DELAYS[attempt])
+                continue
+            r.raise_for_status()
+            return r.json()
+        except httpx.HTTPStatusError as exc:
+            last_exc = exc
+            if attempt < _MAX_RETRIES - 1:
+                _time.sleep(_RETRY_DELAYS[attempt])
+        except httpx.HTTPError as exc:
+            last_exc = exc
+            if attempt < _MAX_RETRIES - 1:
+                _time.sleep(_RETRY_DELAYS[attempt])
+    if last_exc:
+        raise last_exc
+    return {}
 
 
 def _parse_event(event: dict, league_id: str) -> dict:
@@ -68,26 +105,26 @@ def _parse_event(event: dict, league_id: str) -> dict:
     venue = comp.get("venue", {})
 
     return {
-        "match_id":       event.get("id"),
-        "league_id":      league_id,
-        "league_name":    LEAGUE_MAP.get(league_id, {}).get("name", league_id),
-        "home_team":      home.get("team", {}).get("displayName", ""),
-        "away_team":      away.get("team", {}).get("displayName", ""),
+        "match_id":        event.get("id"),
+        "league_id":       league_id,
+        "league_name":     LEAGUE_MAP.get(league_id, {}).get("name", league_id),
+        "home_team":       home.get("team", {}).get("displayName", ""),
+        "away_team":       away.get("team", {}).get("displayName", ""),
         "home_team_short": home.get("team", {}).get("abbreviation", ""),
         "away_team_short": away.get("team", {}).get("abbreviation", ""),
-        "home_score":     int(home.get("score", 0) or 0),
-        "away_score":     int(away.get("score", 0) or 0),
-        "home_logo":      home.get("team", {}).get("logo", ""),
-        "away_logo":      away.get("team", {}).get("logo", ""),
-        "status":         status_type.get("description", ""),
-        "status_short":   status_type.get("shortDetail", ""),
-        "clock":          status.get("displayClock", ""),
-        "period":         status.get("period", 0),
-        "is_live":        status_type.get("state") == "in",
-        "is_final":       status_type.get("completed", False),
-        "match_date":     event.get("date", ""),
-        "venue":          venue.get("fullName", ""),
-        "source":         "espn",
+        "home_score":      int(home.get("score", 0) or 0),
+        "away_score":      int(away.get("score", 0) or 0),
+        "home_logo":       home.get("team", {}).get("logo", ""),
+        "away_logo":       away.get("team", {}).get("logo", ""),
+        "status":          status_type.get("description", ""),
+        "status_short":    status_type.get("shortDetail", ""),
+        "clock":           status.get("displayClock", ""),
+        "period":          status.get("period", 0),
+        "is_live":         status_type.get("state") == "in",
+        "is_final":        status_type.get("completed", False),
+        "match_date":      event.get("date", ""),
+        "venue":           venue.get("fullName", ""),
+        "source":          "espn",
     }
 
 
@@ -96,12 +133,9 @@ def get_leagues() -> list:
 
 
 def get_scoreboard(league_id: str, date: str | None = None) -> list:
-    """
-    Returns matches for a league on a given date (YYYYMMDD).
-    Defaults to today. Also fetches yesterday + tomorrow for richer results.
-    """
+    """Returns matches for a league on a given date (YYYYMMDD). Defaults to today."""
     cache_key = f"{league_id}_{date or 'today'}"
-    ttl = 60 if not date else 3600
+    ttl = _cache.TTL_LIVE if not date else _cache.TTL_TODAY
     cached = _cache.get("espn_scoreboard", cache_key, ttl=ttl)
     if cached is not None:
         return cached
@@ -152,9 +186,15 @@ def get_recent_and_upcoming(league_id: str) -> list:
 def get_match_summary(league_id: str, match_id: str) -> dict:
     """Returns full stats for one ESPN match."""
     cache_key = f"{league_id}_{match_id}"
-    cached = _cache.get("espn_summary", cache_key, ttl=30)
+
+    # Use TTL_LIVE for in-progress; check cache with short TTL first
+    cached = _cache.get("espn_summary", cache_key, ttl=_cache.TTL_LIVE)
     if cached is not None:
-        return cached
+        # If match is finished, extend TTL to completed
+        if cached.get("meta", {}).get("is_live") is False:
+            cached = _cache.get("espn_summary", cache_key, ttl=_cache.TTL_COMPLETED)
+        if cached is not None:
+            return cached
 
     url = f"{_BASE}/{league_id}/summary?event={match_id}"
     try:
@@ -162,17 +202,19 @@ def get_match_summary(league_id: str, match_id: str) -> dict:
     except Exception as e:
         return {"error": str(e)}
 
-    # Header
-    header = data.get("header", {})
+    if not data:
+        return {"error": "Match not found"}
+
+    header      = data.get("header", {})
     competitions = header.get("competitions", [{}])
-    comp = competitions[0] if competitions else {}
+    comp        = competitions[0] if competitions else {}
     competitors = comp.get("competitors", [])
     home = next((c for c in competitors if c.get("homeAway") == "home"), {})
     away = next((c for c in competitors if c.get("homeAway") == "away"), {})
 
-    status = comp.get("status", {})
+    status      = comp.get("status", {})
     status_type = status.get("type", {})
-    venue = data.get("gameInfo", {}).get("venue", {})
+    venue       = data.get("gameInfo", {}).get("venue", {})
 
     meta = {
         "match_id":    match_id,
@@ -190,35 +232,24 @@ def get_match_summary(league_id: str, match_id: str) -> dict:
         "source":      "espn",
     }
 
-    # Stats from boxscore
     stats = {"team1": {}, "team2": {}}
     stat_key_map = {
-        "Fouls":              "fouls",
-        "Yellow Cards":       "yellow_cards",
-        "Red Cards":          "red_cards",
-        "Offsides":           "offsides",
-        "Corner Kicks":       "corners",
-        "Saves":              "saves",
-        "Possession":         "possession",
-        "SHOTS":              "shots",
-        "ON GOAL":            "shots_on_target",
-        "Accurate Passes":    "accurate_passes",
-        "Passes":             "passes",
-        "Pass Completion %":  "pass_pct",
-        "Accurate Crosses":   "accurate_crosses",
-        "Crosses":            "crosses",
-        "Effective Tackles":  "tackles",
-        "Interceptions":      "interceptions",
-        "Effective Clearances": "clearances",
-        "Blocked Shots":      "blocked_shots",
+        "Fouls": "fouls", "Yellow Cards": "yellow_cards", "Red Cards": "red_cards",
+        "Offsides": "offsides", "Corner Kicks": "corners", "Saves": "saves",
+        "Possession": "possession", "SHOTS": "shots", "ON GOAL": "shots_on_target",
+        "Accurate Passes": "accurate_passes", "Passes": "passes",
+        "Pass Completion %": "pass_pct", "Accurate Crosses": "accurate_crosses",
+        "Crosses": "crosses", "Effective Tackles": "tackles",
+        "Interceptions": "interceptions", "Effective Clearances": "clearances",
+        "Blocked Shots": "blocked_shots",
     }
     boxscore = data.get("boxscore", {})
-    for i, team_data in enumerate(boxscore.get("teams", [])):
+    for team_data in boxscore.get("teams", []):
         team_name = team_data.get("team", {}).get("displayName", "")
         key = "team1" if team_name == meta["team1"] else "team2"
         for stat in team_data.get("statistics", []):
-            label = stat.get("label", "")
-            raw   = stat.get("displayValue", "0")
+            label  = stat.get("label", "")
+            raw    = stat.get("displayValue", "0")
             mapped = stat_key_map.get(label)
             if mapped:
                 try:
@@ -231,9 +262,8 @@ def get_match_summary(league_id: str, match_id: str) -> dict:
                 except ValueError:
                     stats[key][mapped] = raw
 
-    # Goal scorers from details
     scorers = []
-    for detail in comp.get("details", []) if isinstance(comp.get("details"), list) else []:
+    for detail in (comp.get("details") or []):
         if detail.get("type", {}).get("id") in ("100", "98", "70"):
             athletes = detail.get("athletesInvolved", [])
             if athletes:
@@ -246,11 +276,6 @@ def get_match_summary(league_id: str, match_id: str) -> dict:
                     "type":   detail.get("type", {}).get("text", "Goal"),
                 })
 
-    result = {
-        "meta":    meta,
-        "stats":   stats,
-        "scorers": scorers,
-        "source":  "espn",
-    }
+    result = {"meta": meta, "stats": stats, "scorers": scorers, "source": "espn"}
     _cache.put("espn_summary", cache_key, result)
     return result

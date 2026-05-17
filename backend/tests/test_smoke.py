@@ -60,3 +60,44 @@ def test_find_match_endpoint():
     assert r.status_code == 200
     data = r.json()
     assert "found" in data
+
+
+def test_health_checks_keys():
+    r = client.get("/health")
+    assert r.status_code == 200
+    checks = r.json()["checks"]
+    assert "statsbomb_index" in checks
+    assert "cache_dir" in checks
+
+
+def test_matches_list_structure():
+    r = client.get("/api/matches?competition_id=43&season_id=106")
+    assert r.status_code == 200
+    data = r.json()
+    assert isinstance(data, list)
+    if data:
+        item = data[0]
+        for key in ["match_id", "home_team", "away_team", "home_score", "away_score", "match_date"]:
+            assert key in item, f"Missing key: {key}"
+
+
+def test_available_features_fdo():
+    r = client.get("/api/match/600000001/available-features")
+    assert r.status_code == 200
+    data = r.json()
+    assert data["source"] == "football-data.org"
+
+
+def test_invalid_match_id_zero():
+    r = client.get("/api/match/0")
+    assert r.status_code == 422
+
+
+def test_invalid_match_id_negative():
+    r = client.get("/api/match/-1")
+    assert r.status_code == 422
+
+
+def test_invalid_league_id():
+    r = client.get("/api/live/scoreboard?league_id=../../etc/passwd")
+    assert r.status_code == 422

@@ -2,6 +2,7 @@ import { lazy, Suspense } from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { MatchProvider } from './context/MatchContext';
 import Sidebar from './components/Sidebar';
+import ScrollToTop from './components/ScrollToTop';
 import ErrorBoundary from './components/ErrorBoundary';
 
 const MatchOverview    = lazy(() => import('./pages/MatchOverview'));
@@ -42,7 +43,8 @@ function Layout() {
   return (
     <div style={{ display: 'flex', minHeight: '100vh' }}>
       <Sidebar />
-      <main style={{ flex: 1, overflowY: 'auto', minWidth: 0 }}>
+      <ScrollToTop />
+      <main id="main-content" style={{ flex: 1, overflowY: 'auto', minWidth: 0 }}>
         <Routes>
           <Route path="/"              element={<RouteWithBoundary element={<MatchOverview />} />} />
           <Route path="/games"         element={<RouteWithBoundary element={<GameSelector />} />} />
@@ -64,6 +66,14 @@ function Layout() {
 export default function App() {
   return (
     <BrowserRouter>
+      <a
+        href="#main-content"
+        style={{ position: 'absolute', left: '-9999px' }}
+        onFocus={e => { e.target.style.left = '0'; }}
+        onBlur={e => { e.target.style.left = '-9999px'; }}
+      >
+        Skip to main content
+      </a>
       <MatchProvider>
         <Layout />
       </MatchProvider>

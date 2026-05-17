@@ -50,6 +50,8 @@ export default function ShotMap({ shots, team1, team2 }) {
           viewBox={`0 0 ${VW} ${VH}`}
           style={{ width: '100%', display: 'block', position: 'relative', zIndex: 1 }}
           preserveAspectRatio="xMidYMid meet"
+          role="img"
+          aria-label={`Shot map — ${team1} vs ${team2}`}
         >
           {/* Pitch fill */}
           <rect x={0} y={0} width={VW} height={VH} fill="rgba(10,20,10,0.7)" />

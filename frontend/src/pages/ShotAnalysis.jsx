@@ -6,7 +6,7 @@ import PageShell from '../components/PageShell';
 import ShotMap from '../components/ShotMap';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
-  ResponsiveContainer, Cell, Legend,
+  ResponsiveContainer, Legend,
 } from 'recharts';
 
 
