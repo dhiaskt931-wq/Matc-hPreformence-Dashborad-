@@ -10,6 +10,7 @@ import threading
 from pathlib import Path
 
 from statsbombpy import sb
+from utils.team_names import alias_key as _alias_key
 
 _CACHE_PATH = Path(__file__).parent.parent / "statsbomb_cache.json"
 
@@ -19,28 +20,7 @@ _lock = threading.Lock()
 
 
 def _normalize(name: str) -> str:
-    name = name.lower().strip()
-    # Common abbreviations / variant spellings
-    subs = {
-        "manchester city": "man city",
-        "manchester united": "man united",
-        "atletico": "atletico",
-        "atlético": "atletico",
-        "real madrid": "real madrid",
-        "fc barcelona": "barcelona",
-        "paris saint-germain": "paris saint germain",
-        "psg": "paris saint germain",
-        "bayern munich": "bayern munchen",
-        "bayern münchen": "bayern munchen",
-        "borussia dortmund": "dortmund",
-        "inter milan": "internazionale",
-        "ac milan": "milan",
-    }
-    for k, v in subs.items():
-        name = name.replace(k, v)
-    name = re.sub(r"[^a-z0-9 ]", " ", name)
-    name = re.sub(r"\s+", " ", name).strip()
-    return name
+    return _alias_key(name)
 
 
 def _build_index() -> dict:

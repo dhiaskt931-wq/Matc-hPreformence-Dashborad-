@@ -99,8 +99,7 @@ export default function PassNetwork() {
                 <div className="card">
                   <div className="label" style={{ marginBottom: 10 }}>Top Players by Touches</div>
                   {[...(net.nodes ?? [])].sort((a, b) => b.touches - a.touches).slice(0, 6).map((n, i) => {
-                    const maxT = net.nodes[0]?.touches ?? 1;
-                    const pct = (n.touches / Math.max(...net.nodes.map(x => x.touches))) * 100;
+                    const pct = (n.touches / Math.max(1, ...net.nodes.map(x => x.touches))) * 100;
                     return (
                       <div key={n.player} style={{ marginBottom: 8 }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 2 }}>

@@ -47,7 +47,7 @@ export default function GKSpotlight({ goalkeepers, team1, team2 }) {
                   <StatPill label="Conceded" value={gk.conceded} color="var(--text-dim)" />
                   <StatPill
                     label="PSxG +"
-                    value={`${prevented >= 0 ? '+' : ''}${prevented.toFixed(2)}`}
+                    value={`${prevented >= 0 ? '+' : ''}${Number(prevented).toFixed(2)}`}
                     color={prevented >= 0 ? 'var(--green)' : 'var(--fra)'}
                   />
                 </div>

@@ -1,6 +1,9 @@
 """Understat integration — shot-level data via HTML scraping."""
-import re, json, math, requests
+import re, json, math, time, threading, logging, requests
+from datetime import datetime as _dt
 from . import cache
+
+logger = logging.getLogger(__name__)
 
 UNDERSTAT_OFFSET = 50_000_000
 
@@ -43,21 +46,53 @@ def _extract(html: str, var_name: str):
     pattern = r"var\s+" + re.escape(var_name) + r"\s*=\s*JSON\.parse\('([\s\S]*?)'\)"
     m = re.search(pattern, html)
     if not m:
-        raise ValueError(f"Could not find variable '{var_name}' in HTML")
+        logger.warning(
+            "Understat HTML structure may have changed — could not find '%s'. "
+            "Page preview: %.300s", var_name, html
+        )
+        raise ValueError(
+            f"Could not find variable '{var_name}' in Understat HTML. "
+            "The page structure may have changed."
+        )
     raw = m.group(1).replace("\\'", "'")
-    return json.loads(raw)
+    try:
+        return json.loads(raw)
+    except json.JSONDecodeError as e:
+        logger.error("Failed to parse JSON from Understat variable '%s': %s", var_name, e)
+        raise
+
+
+_ratelimit_lock = threading.Lock()
+_last_fetch_time = 0.0
+_MIN_INTERVAL = 1.5  # seconds between requests
 
 
 def _fetch_html(url: str) -> str:
-    r = requests.get(url, headers={"User-Agent": "Mozilla/5.0"}, timeout=20)
-    r.raise_for_status()
-    return r.text
+    global _last_fetch_time
+    with _ratelimit_lock:
+        wait = _MIN_INTERVAL - (time.time() - _last_fetch_time)
+        if wait > 0:
+            time.sleep(wait)
+        _last_fetch_time = time.time()
+
+    last_exc: Exception | None = None
+    for attempt in range(3):
+        try:
+            r = requests.get(url, headers={"User-Agent": "Mozilla/5.0"}, timeout=20)
+            r.raise_for_status()
+            return r.text
+        except requests.RequestException as exc:
+            last_exc = exc
+            if attempt < 2:
+                time.sleep(2 ** attempt)
+    raise last_exc  # type: ignore[misc]
 
 
 def get_competitions() -> list:
     result = []
+    _current_year = _dt.now().year
     for comp_id, info in LEAGUE_MAP.items():
-        for year in range(2014, 2026):
+        for year in range(2014, _current_year + 1):
             result.append({
                 "competition_id": comp_id,
                 "season_id": year,
@@ -154,7 +189,7 @@ def _parse_shots(raw: dict) -> tuple:
                 y_sb = y_raw * 80
             else:
                 x_sb = (1 - x_raw) * 120
-                y_sb = (1 - y_raw) * 80
+                y_sb = y_raw * 80
 
             shots_list.append({
                 "team": s.get("h_team") if side == "h" else s.get("a_team"),
@@ -255,7 +290,8 @@ def build_match_overview(us_id: int) -> dict:
         psxg_prevented = round(total_xg_faced - conceded, 2)
         gk.append({
             "team": team,
-            "player": "Goalkeeper",
+            "player": f"{team} GK",
+            "nameUnavailable": True,
             "saves": saves,
             "conceded": conceded,
             "psxgPrevented": psxg_prevented,
@@ -274,7 +310,7 @@ def build_match_overview(us_id: int) -> dict:
         },
         "statBoxes": {
             "xg": {t1: xg_t1, t2: xg_t2},
-            "possession": {t1: None, t2: None},
+            "possession": {t1: "—", t2: "—"},
             "shotsOnTarget": {t1: sot_t1, t2: sot_t2},
         },
         "topPlayers": {

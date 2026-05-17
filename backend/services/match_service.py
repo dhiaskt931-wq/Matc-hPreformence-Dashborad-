@@ -1,7 +1,11 @@
 import math
+import logging
+from functools import lru_cache
 import numpy as np
 import pandas as pd
 from statsbombpy import sb
+
+logger = logging.getLogger(__name__)
 
 
 # ── discovery endpoints ───────────────────────────────────────────────────────
@@ -43,9 +47,27 @@ def get_matches_list(competition_id: int, season_id: int) -> list:
 _COMP_CACHE: dict[int, tuple[int, int]] = {3869685: (43, 106)}
 
 
+def _populate_comp_cache_from_index() -> None:
+    """Seed _COMP_CACHE from the StatsBomb index (fast, no HTTP calls)."""
+    try:
+        from services import match_index as mi
+        if not mi.is_ready():
+            return
+        for val in (mi._index or {}).values():
+            mid = val.get("match_id")
+            cid = val.get("competition_id")
+            sid = val.get("season_id")
+            if mid and cid and sid and mid not in _COMP_CACHE:
+                _COMP_CACHE[int(mid)] = (int(cid), int(sid))
+    except Exception:
+        pass
+
+
 def _find_comp(match_id: int) -> tuple[int, int]:
+    _populate_comp_cache_from_index()
     if match_id in _COMP_CACHE:
         return _COMP_CACHE[match_id]
+    # Fallback: brute-force (rare — only for matches not in index yet)
     for _, row in sb.competitions().iterrows():
         try:
             m = sb.matches(competition_id=int(row["competition_id"]), season_id=int(row["season_id"]))
@@ -58,8 +80,9 @@ def _find_comp(match_id: int) -> tuple[int, int]:
     raise ValueError(f"Match {match_id} not found in any StatsBomb competition")
 
 
+@lru_cache(maxsize=20)
 def _load(match_id: int):
-    """Return (events, team1, team2, row) for any StatsBomb match."""
+    """Return (events, team1, team2, row) for any StatsBomb match. Cached per match_id."""
     events = sb.events(match_id=match_id)
     comp_id, season_id = _find_comp(match_id)
     matches = sb.matches(competition_id=comp_id, season_id=season_id)
@@ -79,6 +102,7 @@ def _loc_y(loc):
 
 def get_match_data(match_id: int) -> dict:
     events, team1, team2, row = _load(match_id)
+    events = events.copy()
     score1 = int(row["home_score"])
     score2 = int(row["away_score"])
     return {
@@ -122,8 +146,11 @@ def _top_players(events, team1, team2) -> dict:
                  .sum().round(2).reset_index().rename(columns={"shot_statsbomb_xg": "xg"}))
     goals = (events[events["shot_outcome"] == "Goal"].groupby(["team", "player"])["id"]
              .count().reset_index().rename(columns={"id": "goals"}))
-    assists = (events[events["pass_goal_assist"] == True].groupby(["team", "player"])["id"]
-               .count().reset_index().rename(columns={"id": "assists"}))
+    if "pass_goal_assist" in events.columns:
+        assists = (events[events["pass_goal_assist"] == True].groupby(["team", "player"])["id"]
+                   .count().reset_index().rename(columns={"id": "assists"}))
+    else:
+        assists = pd.DataFrame(columns=["team", "player", "assists"])
     merged = (player_xg.merge(goals, on=["team", "player"], how="left")
               .merge(assists, on=["team", "player"], how="left").fillna(0))
     result = {}
@@ -186,9 +213,13 @@ def _goalkeepers(events, team1, team2) -> list:
     psxg = (reg[(reg["type"] == "Shot") & (reg["shot_outcome"].isin(["Goal", "Saved"]))]
             .groupby("team")["shot_statsbomb_xg"].sum().round(2)
             .reset_index().rename(columns={"shot_statsbomb_xg": "psxg_faced"}))
-    pen_saved = (events[(events["period"] == 5) & (events["type"] == "Goal Keeper") &
-                        (events["goalkeeper_type"] == "Shot Saved")]
-                 .groupby("team")["id"].count().reset_index().rename(columns={"id": "penaltiesSaved"}))
+    shootout = events[events["period"] == 5]
+    if shootout.empty or "goalkeeper_type" not in shootout.columns:
+        pen_saved = pd.DataFrame(columns=["team", "penaltiesSaved"])
+    else:
+        pen_saved = (shootout[(shootout["type"] == "Goal Keeper") &
+                              (shootout["goalkeeper_type"] == "Shot Saved")]
+                     .groupby("team")["id"].count().reset_index().rename(columns={"id": "penaltiesSaved"}))
     gk = (saves.merge(conceded, on="team", how="left").merge(psxg, on="team", how="left")
           .merge(pen_saved, on="team", how="left").fillna(0))
     gk["psxgPrevented"] = (gk["psxg_faced"] - gk["conceded"]).round(2)
@@ -202,6 +233,7 @@ def _goalkeepers(events, team1, team2) -> list:
 
 def get_shot_analysis(match_id: int) -> dict:
     events, team1, team2, _ = _load(match_id)
+    events = events.copy()
     shots = events[(events["type"] == "Shot") & (events["period"] != 5)].copy()
     shots["x"] = shots["location"].apply(_loc_x)
     shots["y"] = shots["location"].apply(_loc_y)
@@ -222,7 +254,7 @@ def get_shot_analysis(match_id: int) -> dict:
         body_parts = {}
         if bp_col:
             bp = t[bp_col].dropna().value_counts()
-            body_parts = {str(k): int(v) for k, v in bp.items()}
+            body_parts = {str(k): int(v) for k, v in bp.items() if str(k) != 'nan'}
 
         # distance bins (yards from goal)
         bins = [0, 6, 12, 18, 25, 200]
@@ -252,7 +284,7 @@ def get_shot_analysis(match_id: int) -> dict:
         shot_types = {}
         if st_col:
             st = t[st_col].dropna().value_counts()
-            shot_types = {str(k): int(v) for k, v in st.items()}
+            shot_types = {str(k): int(v) for k, v in st.items() if str(k) != 'nan'}
 
         result[team] = {
             "total": len(t),
@@ -279,6 +311,7 @@ def get_shot_analysis(match_id: int) -> dict:
 
 def get_pass_network(match_id: int) -> dict:
     events, team1, team2, _ = _load(match_id)
+    events = events.copy()
     reg = events[events["period"] != 5]
 
     # open-play passes only
@@ -325,6 +358,7 @@ def get_pass_network(match_id: int) -> dict:
 
 def get_heatmap(match_id: int) -> dict:
     events, team1, team2, _ = _load(match_id)
+    events = events.copy()
     touch_types = ["Pass", "Carry", "Ball Receipt*", "Pressure", "Shot", "Dribble"]
     touches = events[events["type"].isin(touch_types)].copy()
     touches["x"] = touches["location"].apply(_loc_x)
@@ -350,6 +384,7 @@ def get_heatmap(match_id: int) -> dict:
 
 def get_player_stats(match_id: int) -> dict:
     events, team1, team2, _ = _load(match_id)
+    events = events.copy()
     reg = events[events["period"] != 5]
 
     base = reg.groupby(["team", "player"])["id"].count().reset_index()[["team", "player"]]
@@ -361,8 +396,11 @@ def get_player_stats(match_id: int) -> dict:
                 .reset_index().rename(columns={"id": "shots"}))
     goals = (events[events["shot_outcome"] == "Goal"].groupby(["team", "player"])["id"]
              .count().reset_index().rename(columns={"id": "goals"}))
-    assists = (events[events["pass_goal_assist"] == True].groupby(["team", "player"])["id"]
-               .count().reset_index().rename(columns={"id": "assists"}))
+    if "pass_goal_assist" in events.columns:
+        assists = (events[events["pass_goal_assist"] == True].groupby(["team", "player"])["id"]
+                   .count().reset_index().rename(columns={"id": "assists"}))
+    else:
+        assists = pd.DataFrame(columns=["team", "player", "assists"])
     passes = (reg[reg["type"] == "Pass"].groupby(["team", "player"])["id"]
               .count().reset_index().rename(columns={"id": "passes"}))
     key_passes = pd.DataFrame(columns=["team", "player", "keyPasses"])
@@ -397,6 +435,7 @@ def get_player_stats(match_id: int) -> dict:
 
 def get_pressure_duels(match_id: int) -> dict:
     events, team1, team2, _ = _load(match_id)
+    events = events.copy()
     reg = events[events["period"] != 5]
 
     # pressure locations
@@ -437,6 +476,7 @@ def get_pressure_duels(match_id: int) -> dict:
 
 def get_defensive_actions(match_id: int) -> dict:
     events, team1, team2, _ = _load(match_id)
+    events = events.copy()
     reg = events[events["period"] != 5]
 
     results = []
@@ -450,9 +490,10 @@ def get_defensive_actions(match_id: int) -> dict:
                              "x": float(r["x"]), "y": float(r["y"])})
 
     # tackles from duel events
-    tackles = reg[(reg["type"] == "Duel") &
-                  (reg.get("duel_type", pd.Series(dtype=str)) == "Tackle")].copy() \
-        if "duel_type" in reg.columns else pd.DataFrame()
+    if "duel_type" in reg.columns:
+        tackles = reg[(reg["type"] == "Duel") & (reg["duel_type"] == "Tackle")].copy()
+    else:
+        tackles = pd.DataFrame()
     if not tackles.empty:
         tackles["x"] = tackles["location"].apply(_loc_x)
         tackles["y"] = tackles["location"].apply(_loc_y)
@@ -472,6 +513,7 @@ def get_defensive_actions(match_id: int) -> dict:
 
 def get_set_pieces(match_id: int) -> dict:
     events, team1, team2, _ = _load(match_id)
+    events = events.copy()
     reg = events[events["period"] != 5]
 
     corners = reg[(reg["type"] == "Pass") & (reg["pass_type"] == "Corner")].copy() \
@@ -537,6 +579,7 @@ def get_set_pieces(match_id: int) -> dict:
 
 def get_momentum(match_id: int) -> dict:
     events, team1, team2, _ = _load(match_id)
+    events = events.copy()
     reg = events[events["period"] != 5]
 
     # 3-minute bins across full match duration

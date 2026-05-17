@@ -1,0 +1,48 @@
+"""Shared configuration and feature availability matrix."""
+
+FEATURE_MATRIX: dict[str, dict[str, str]] = {
+    "statsbomb": {
+        "match-overview": "full",
+        "shot-analysis":  "full",
+        "pass-network":   "full",
+        "heatmap":        "full",
+        "player-stats":   "full",
+        "pressure":       "full",
+        "defensive":      "full",
+        "set-pieces":     "full",
+        "momentum":       "full",
+    },
+    "understat": {
+        "match-overview": "partial",
+        "shot-analysis":  "full",
+        "pass-network":   "unavailable",
+        "heatmap":        "unavailable",
+        "player-stats":   "partial",
+        "pressure":       "unavailable",
+        "defensive":      "unavailable",
+        "set-pieces":     "partial",
+        "momentum":       "unavailable",
+    },
+    "football-data.org": {
+        "match-overview": "partial",
+        "shot-analysis":  "unavailable",
+        "pass-network":   "unavailable",
+        "heatmap":        "unavailable",
+        "player-stats":   "unavailable",
+        "pressure":       "unavailable",
+        "defensive":      "unavailable",
+        "set-pieces":     "unavailable",
+        "momentum":       "unavailable",
+    },
+    "espn": {
+        "match-overview": "partial",
+        "shot-analysis":  "unavailable",
+        "pass-network":   "unavailable",
+        "heatmap":        "unavailable",
+        "player-stats":   "unavailable",
+        "pressure":       "unavailable",
+        "defensive":      "unavailable",
+        "set-pieces":     "unavailable",
+        "momentum":       "unavailable",
+    },
+}

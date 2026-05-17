@@ -1,8 +1,10 @@
 export default function StatBox({ label, team1, team2, val1, val2, unit = '', color1 = 'var(--arg)', color2 = 'var(--fra)' }) {
-  const n1 = parseFloat(val1) || 0;
-  const n2 = parseFloat(val2) || 0;
-  const total = n1 + n2 || 1;
-  const pct1 = (n1 / total) * 100;
+  const isNumeric1 = typeof val1 === 'number' || (typeof val1 === 'string' && val1 !== '—' && !isNaN(parseFloat(val1)));
+  const isNumeric2 = typeof val2 === 'number' || (typeof val2 === 'string' && val2 !== '—' && !isNaN(parseFloat(val2)));
+  const n1 = isNumeric1 ? (parseFloat(val1) || 0) : 0;
+  const n2 = isNumeric2 ? (parseFloat(val2) || 0) : 0;
+  const total = (isNumeric1 && isNumeric2) ? (n1 + n2 || 1) : 1;
+  const pct1 = (isNumeric1 && isNumeric2) ? (n1 / total) * 100 : 50;
 
   return (
     <div className="card animate-fade-up" style={{ padding: '16px 18px' }}>

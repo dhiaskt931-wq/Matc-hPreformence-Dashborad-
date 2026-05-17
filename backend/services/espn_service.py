@@ -5,7 +5,9 @@ Provides live scores, recent results, and match stats for 20+ leagues.
 
 import urllib.request
 import json
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from data_sources import cache as _cache
 
 _BASE = "https://site.api.espn.com/apis/site/v2/sports/soccer"
 
@@ -98,40 +100,62 @@ def get_scoreboard(league_id: str, date: str | None = None) -> list:
     Returns matches for a league on a given date (YYYYMMDD).
     Defaults to today. Also fetches yesterday + tomorrow for richer results.
     """
+    cache_key = f"{league_id}_{date or 'today'}"
+    ttl = 60 if not date else 3600
+    cached = _cache.get("espn_scoreboard", cache_key, ttl=ttl)
+    if cached is not None:
+        return cached
+
     base_url = f"{_BASE}/{league_id}/scoreboard"
-    if date:
-        url = f"{base_url}?dates={date}"
-    else:
-        url = base_url
+    url = f"{base_url}?dates={date}" if date else base_url
 
     try:
         data = _fetch(url)
         events = data.get("events", [])
-        return [_parse_event(e, league_id) for e in events]
+        result = [_parse_event(e, league_id) for e in events]
+        _cache.put("espn_scoreboard", cache_key, result)
+        return result
     except Exception:
         return []
 
 
 def get_recent_and_upcoming(league_id: str) -> list:
-    """Fetches last 7 days + next 7 days for a league."""
-    today = datetime.utcnow()
-    results = []
-    for delta in range(-7, 8):
-        d = (today + timedelta(days=delta)).strftime("%Y%m%d")
-        results.extend(get_scoreboard(league_id, d))
+    """Fetches last 7 days + next 7 days for a league (parallelized)."""
+    cache_key = f"recent_{league_id}"
+    cached = _cache.get("espn_recent", cache_key, ttl=300)
+    if cached is not None:
+        return cached
 
-    # De-duplicate by match_id
+    today = datetime.now(timezone.utc)
+    dates = [(today + timedelta(days=d)).strftime("%Y%m%d") for d in range(-7, 8)]
+
+    results = []
+    with ThreadPoolExecutor(max_workers=5) as executor:
+        futures = {executor.submit(get_scoreboard, league_id, d): d for d in dates}
+        for future in as_completed(futures):
+            try:
+                results.extend(future.result())
+            except Exception:
+                continue
+
     seen = set()
     unique = []
     for m in results:
         if m["match_id"] not in seen:
             seen.add(m["match_id"])
             unique.append(m)
-    return sorted(unique, key=lambda x: x["match_date"], reverse=True)
+    result = sorted(unique, key=lambda x: x["match_date"], reverse=True)
+    _cache.put("espn_recent", cache_key, result)
+    return result
 
 
 def get_match_summary(league_id: str, match_id: str) -> dict:
     """Returns full stats for one ESPN match."""
+    cache_key = f"{league_id}_{match_id}"
+    cached = _cache.get("espn_summary", cache_key, ttl=30)
+    if cached is not None:
+        return cached
+
     url = f"{_BASE}/{league_id}/summary?event={match_id}"
     try:
         data = _fetch(url)
@@ -222,9 +246,11 @@ def get_match_summary(league_id: str, match_id: str) -> dict:
                     "type":   detail.get("type", {}).get("text", "Goal"),
                 })
 
-    return {
+    result = {
         "meta":    meta,
         "stats":   stats,
         "scorers": scorers,
         "source":  "espn",
     }
+    _cache.put("espn_summary", cache_key, result)
+    return result

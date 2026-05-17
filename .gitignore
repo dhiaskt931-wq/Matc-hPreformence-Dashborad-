@@ -1,17 +1,41 @@
 # Jupyter checkpoints
 .ipynb_checkpoints/
 */.ipynb_checkpoints/
+footballprojects/.ipynb_checkpoints/
 
 # Generated images
 *.png
 
-# Python cache
+# Python
 __pycache__/
 *.pyc
 *.pyo
+*.pyd
+*.egg-info/
+.venv/
+venv/
+env/
+.env
+*.env
 
-# OS
+# Backend cache & generated data
+backend/cache/
+backend/statsbomb_cache.json
+*.log
+
+# Node / Frontend
+node_modules/
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+
+# IDE / OS
 .DS_Store
 Thumbs.db
+desktop.ini
+.vscode/
+.idea/
+
+# Project-local claude config
 .claude/
 data-analytics-skills/

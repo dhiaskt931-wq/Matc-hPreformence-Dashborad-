@@ -1,5 +1,5 @@
 import { useMatch } from '../context/MatchContext';
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import useFetch from '../hooks/useFetch';
 import { fetchPlayerStats } from '../api/matchApi';
 import PageShell from '../components/PageShell';
@@ -28,10 +28,11 @@ export default function TopPerformers() {
       {data && (() => {
         const { team1, team2, players } = data;
 
-        const filtered = players
+        const filtered = useMemo(() => players
           .filter(p => teamFilter === 'all' || p.team === teamFilter)
-          .filter(p => Object.values({ goals: p.goals, xg: p.xg, shots: p.shots, passes: p.passes, pressures: p.pressures }).some(v => v > 0))
-          .sort((a, b) => b[sortKey] - a[sortKey]);
+          .filter(p => p.goals > 0 || p.xg > 0 || p.shots > 0 || p.passes > 0 || p.pressures > 0)
+          .sort((a, b) => (b[sortKey] ?? 0) - (a[sortKey] ?? 0)),
+        [players, teamFilter, sortKey]);
 
         return (
           <div style={{ padding: '24px 24px 40px' }}>
@@ -135,7 +136,7 @@ export default function TopPerformers() {
                             color: sortKey === col.key ? teamColor : 'var(--text)',
                             fontWeight: sortKey === col.key ? 700 : 400,
                           }}>
-                            {col.key === 'xg' ? p[col.key].toFixed(2) : p[col.key]}
+                            {col.key === 'xg' ? Number(p[col.key] ?? 0).toFixed(2) : p[col.key]}
                           </td>
                         ))}
                       </tr>

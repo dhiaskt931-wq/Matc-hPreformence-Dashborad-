@@ -23,7 +23,10 @@ export function MatchProvider({ children }) {
     setFeatures(null);
     fetchAvailableFeatures(selected.matchId)
       .then(setFeatures)
-      .catch(() => setFeatures(null));
+      .catch(err => {
+        console.error('Failed to fetch available features:', err);
+        setFeatures(null);
+      });
   }, [selected?.matchId]);
 
   return (

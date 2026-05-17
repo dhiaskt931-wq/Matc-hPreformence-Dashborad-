@@ -103,6 +103,7 @@ function EmptyMsg({ children }) {
 function StatsBombTab({ onSelect }) {
   const [comps, setComps]               = useState([]);
   const [loading, setLoading]           = useState(true);
+  const [searchInput, setSearchInput]   = useState('');
   const [search, setSearch]             = useState('');
   const [activeComp, setActiveComp]     = useState(null);
   const [activeSeason, setActiveSeason] = useState(null);
@@ -124,6 +125,11 @@ function StatsBombTab({ onSelect }) {
       .catch(() => setMatchLoading(false));
   }, [activeSeason]);
 
+  useEffect(() => {
+    const timer = setTimeout(() => setSearch(searchInput), 300);
+    return () => clearTimeout(timer);
+  }, [searchInput]);
+
   const filtered = useMemo(() => {
     if (!search.trim()) return comps;
     const q = search.toLowerCase();
@@ -139,7 +145,7 @@ function StatsBombTab({ onSelect }) {
       <PanelCard>
         <PanelHeader>
           <input
-            value={search} onChange={e => setSearch(e.target.value)}
+            value={searchInput} onChange={e => setSearchInput(e.target.value)}
             placeholder="Search competitions…"
             style={{
               width: '100%', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border)',

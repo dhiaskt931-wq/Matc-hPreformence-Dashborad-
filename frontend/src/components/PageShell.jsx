@@ -1,3 +1,10 @@
+export const DATA_SOURCES = {
+  STATSBOMB: 'statsbomb',
+  UNDERSTAT: 'understat',
+  ESPN: 'espn',
+  FDO: 'football-data',
+};
+
 function Spinner() {
   return (
     <div style={{

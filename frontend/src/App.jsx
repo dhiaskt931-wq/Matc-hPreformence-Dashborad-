@@ -1,17 +1,42 @@
+import { lazy, Suspense } from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { MatchProvider } from './context/MatchContext';
 import Sidebar from './components/Sidebar';
-import MatchOverview    from './pages/MatchOverview';
-import XGTimeline       from './pages/XGTimeline';
-import ShotAnalysis     from './pages/ShotAnalysis';
-import PassNetwork      from './pages/PassNetwork';
-import PlayerHeatmaps   from './pages/PlayerHeatmaps';
-import TopPerformers    from './pages/TopPerformers';
-import DuelsPressure    from './pages/DuelsPressure';
-import DefensiveActions from './pages/DefensiveActions';
-import SetPieces        from './pages/SetPieces';
-import MomentumChart    from './pages/MomentumChart';
-import GameSelector     from './pages/GameSelector';
+import ErrorBoundary from './components/ErrorBoundary';
+
+const MatchOverview    = lazy(() => import('./pages/MatchOverview'));
+const XGTimeline       = lazy(() => import('./pages/XGTimeline'));
+const ShotAnalysis     = lazy(() => import('./pages/ShotAnalysis'));
+const PassNetwork      = lazy(() => import('./pages/PassNetwork'));
+const PlayerHeatmaps   = lazy(() => import('./pages/PlayerHeatmaps'));
+const TopPerformers    = lazy(() => import('./pages/TopPerformers'));
+const DuelsPressure    = lazy(() => import('./pages/DuelsPressure'));
+const DefensiveActions = lazy(() => import('./pages/DefensiveActions'));
+const SetPieces        = lazy(() => import('./pages/SetPieces'));
+const MomentumChart    = lazy(() => import('./pages/MomentumChart'));
+const GameSelector     = lazy(() => import('./pages/GameSelector'));
+
+function PageFallback() {
+  return (
+    <div style={{ padding: 72, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <svg width="32" height="32" viewBox="0 0 40 40" fill="none" style={{ animation: 'spin 0.9s linear infinite' }}>
+        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+        <circle cx="20" cy="20" r="17" stroke="rgba(96,165,250,0.12)" strokeWidth="3" />
+        <path d="M20 3a17 17 0 0 1 17 17" stroke="var(--arg)" strokeWidth="3" strokeLinecap="round" />
+      </svg>
+    </div>
+  );
+}
+
+function RouteWithBoundary({ element }) {
+  return (
+    <ErrorBoundary>
+      <Suspense fallback={<PageFallback />}>
+        {element}
+      </Suspense>
+    </ErrorBoundary>
+  );
+}
 
 function Layout() {
   return (
@@ -19,17 +44,17 @@ function Layout() {
       <Sidebar />
       <main style={{ flex: 1, overflowY: 'auto', minWidth: 0 }}>
         <Routes>
-          <Route path="/"              element={<MatchOverview />} />
-          <Route path="/games"         element={<GameSelector />} />
-          <Route path="/xg-timeline"   element={<XGTimeline />} />
-          <Route path="/shot-analysis" element={<ShotAnalysis />} />
-          <Route path="/pass-network"  element={<PassNetwork />} />
-          <Route path="/heatmaps"      element={<PlayerHeatmaps />} />
-          <Route path="/top-stats"     element={<TopPerformers />} />
-          <Route path="/duels"         element={<DuelsPressure />} />
-          <Route path="/defensive"     element={<DefensiveActions />} />
-          <Route path="/set-pieces"    element={<SetPieces />} />
-          <Route path="/momentum"      element={<MomentumChart />} />
+          <Route path="/"              element={<RouteWithBoundary element={<MatchOverview />} />} />
+          <Route path="/games"         element={<RouteWithBoundary element={<GameSelector />} />} />
+          <Route path="/xg-timeline"   element={<RouteWithBoundary element={<XGTimeline />} />} />
+          <Route path="/shot-analysis" element={<RouteWithBoundary element={<ShotAnalysis />} />} />
+          <Route path="/pass-network"  element={<RouteWithBoundary element={<PassNetwork />} />} />
+          <Route path="/heatmaps"      element={<RouteWithBoundary element={<PlayerHeatmaps />} />} />
+          <Route path="/top-stats"     element={<RouteWithBoundary element={<TopPerformers />} />} />
+          <Route path="/duels"         element={<RouteWithBoundary element={<DuelsPressure />} />} />
+          <Route path="/defensive"     element={<RouteWithBoundary element={<DefensiveActions />} />} />
+          <Route path="/set-pieces"    element={<RouteWithBoundary element={<SetPieces />} />} />
+          <Route path="/momentum"      element={<RouteWithBoundary element={<MomentumChart />} />} />
         </Routes>
       </main>
     </div>

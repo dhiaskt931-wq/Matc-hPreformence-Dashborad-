@@ -241,7 +241,7 @@ function StatsBombOverview({ selected }) {
     <div style={{ padding: '0 20px 48px', display: 'flex', flexDirection: 'column', gap: 12 }}>
       <Header meta={meta} />
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
-        <StatBox label="Expected Goals (xG)" team1={team1} team2={team2} val1={statBoxes.xg[team1]?.toFixed(2)} val2={statBoxes.xg[team2]?.toFixed(2)} />
+        <StatBox label="Expected Goals (xG)" team1={team1} team2={team2} val1={statBoxes.xg[team1] != null ? Number(statBoxes.xg[team1]).toFixed(2) : '—'} val2={statBoxes.xg[team2] != null ? Number(statBoxes.xg[team2]).toFixed(2) : '—'} />
         <StatBox
           label="Possession"
           team1={team1} team2={team2}
@@ -261,15 +261,15 @@ function StatsBombOverview({ selected }) {
         <XGFlow flow={xgFlow} team1={team1} team2={team2} />
         <GKSpotlight goalkeepers={goalkeepers} team1={team1} team2={team2} />
       </div>
-      {meta.source === 'understat' && (
+      {meta.source && meta.source !== 'statsbomb' && (
         <div style={{
           padding: '10px 14px', borderRadius: 10,
           background: 'rgba(251,191,36,0.06)',
           border: '1px solid rgba(251,191,36,0.14)',
           fontSize: 11, color: 'var(--text-dim)', lineHeight: 1.6,
         }}>
-          <strong style={{ color: 'var(--gold)' }}>Understat data</strong> — xG, shots, and player scoring stats available.
-          Pass networks, heatmaps, pressure, defensive actions, and momentum require StatsBomb event data.
+          <strong style={{ color: 'var(--gold)' }}>{meta.source} data</strong> — Some analysis features are limited.
+          Full pass networks, heatmaps, pressure maps, and momentum require StatsBomb event data.
         </div>
       )}
     </div>

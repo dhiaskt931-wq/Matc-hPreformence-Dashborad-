@@ -1,10 +1,9 @@
 import { useMatch } from '../context/MatchContext';
 import useFetch from '../hooks/useFetch';
-import { fetchShotAnalysis } from '../api/matchApi';
+import { fetchShotAnalysis, fetchMatch } from '../api/matchApi';
+import { abbrev } from '../utils/teamAbbrev';
 import PageShell from '../components/PageShell';
 import ShotMap from '../components/ShotMap';
-import useFetchBase from '../hooks/useFetch';
-import { fetchMatch } from '../api/matchApi';
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, Cell, Legend,
@@ -28,10 +27,12 @@ function StatCard({ label, t1val, t2val, team1, team2 }) {
   );
 }
 
+const SHOT_BAR_SCALE = 2;
+
 export default function ShotAnalysis() {
   const { selected } = useMatch();
   const { data: analysis, error: e1, loading: l1 } = useFetch(fetchShotAnalysis, selected.matchId);
-  const { data: matchData, error: e2, loading: l2 } = useFetchBase(fetchMatch, selected.matchId);
+  const { data: matchData, error: e2, loading: l2 } = useFetch(fetchMatch, selected.matchId);
 
   return (
     <PageShell loading={l1 || l2} error={e1 || e2}>
@@ -63,7 +64,7 @@ export default function ShotAnalysis() {
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 10, marginBottom: 14 }}>
               <StatCard label="Total Shots" t1val={a1.total} t2val={a2.total} team1={team1} team2={team2} />
               <StatCard label="Goals" t1val={a1.goals} t2val={a2.goals} team1={team1} team2={team2} />
-              <StatCard label="Total xG" t1val={a1.xg?.toFixed(2)} t2val={a2.xg?.toFixed(2)} team1={team1} team2={team2} />
+              <StatCard label="Total xG" t1val={a1.xg != null ? Number(a1.xg).toFixed(2) : '—'} t2val={a2.xg != null ? Number(a2.xg).toFixed(2) : '—'} team1={team1} team2={team2} />
               <StatCard label="Avg Distance (yds)" t1val={a1.avgDistance} t2val={a2.avgDistance} team1={team1} team2={team2} />
             </div>
 
@@ -84,13 +85,13 @@ export default function ShotAnalysis() {
                       {[{ team: team1, z: z1, c: 'var(--arg)' }, { team: team2, z: z2, c: 'var(--fra)' }].map(({ team, z, c }) => (
                         <div key={team} style={{ marginBottom: 4 }}>
                           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 2 }}>
-                            <span style={{ color: c, fontSize: 11, fontWeight: 600 }}>{team.slice(0, 3).toUpperCase()}</span>
+                            <span style={{ color: c, fontSize: 11, fontWeight: 600 }}>{abbrev(team)}</span>
                             <span style={{ color: 'var(--muted)', fontSize: 10 }}>
                               {z.shots} shots · {z.goals} G · {z.xg?.toFixed(2)} xG
                             </span>
                           </div>
                           <div style={{ height: 4, borderRadius: 2, background: 'var(--border)' }}>
-                            <div style={{ height: '100%', width: `${Math.min((z.shots / Math.max(a1.total + a2.total, 1)) * 100 * 2, 100)}%`, background: c, borderRadius: 2 }} />
+                            <div style={{ height: '100%', width: `${Math.min((z.shots / Math.max(a1.total + a2.total, 1)) * 100 * SHOT_BAR_SCALE, 100)}%`, background: c, borderRadius: 2 }} />
                           </div>
                         </div>
                       ))}

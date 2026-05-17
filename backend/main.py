@@ -1,6 +1,15 @@
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from typing import Optional
+import time as _time
+import logging
+from contextlib import asynccontextmanager
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+)
+logger = logging.getLogger("football_api")
 
 from services.match_service import (
     get_competitions as sb_get_competitions,
@@ -25,33 +34,52 @@ import data_sources.understat as us
 import data_sources.football_data_org as fdo
 from data_sources.resolver import get_source, get_available_features, understat_id
 
-app = FastAPI(title="Football Dashboard API")
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    logger.info("Football Dashboard API starting up...")
+    yield
+    logger.info("Football Dashboard API shutting down.")
+
+app = FastAPI(title="Football Dashboard API", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:5173", "http://127.0.0.1:5173",
                    "http://localhost:5174", "http://127.0.0.1:5174",
                    "http://localhost:5175", "http://127.0.0.1:5175"],
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "OPTIONS"],
+    allow_headers=["Content-Type", "Accept"],
 )
 
 
 def _run(fn, *args, **kwargs):
     try:
         return fn(*args, **kwargs)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:
+        logger.error("Error in %s: %s", fn.__name__, e, exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
+
+
+_competitions_cache: dict = {"data": None, "ts": 0.0}
+_COMPETITIONS_TTL = 3600.0  # 1 hour
 
 
 # ── Discovery endpoints ───────────────────────────────────────────────────────
 
 @app.get("/api/competitions")
 def competitions():
-    sb = _run(sb_get_competitions)
+    now = _time.time()
+    if _competitions_cache["data"] is not None and now - _competitions_cache["ts"] < _COMPETITIONS_TTL:
+        return _competitions_cache["data"]
+    sb_comps = _run(sb_get_competitions)
     understat_comps = _run(us.get_competitions)
-    fdo_comps = fdo.get_competitions()
-    return sb + understat_comps + fdo_comps
+    fdo_comps = fdo.get_competitions() if fdo.is_enabled() else []
+    result = sb_comps + understat_comps + fdo_comps
+    _competitions_cache["data"] = result
+    _competitions_cache["ts"] = now
+    return result
 
 
 @app.get("/api/matches")
@@ -168,4 +196,16 @@ def live_match(league_id: str, match_id: str):
 
 @app.get("/health")
 def health():
-    return {"status": "ok"}
+    from pathlib import Path
+    from services.match_index import is_ready
+    checks: dict = {}
+    checks["statsbomb_index"] = "ready" if is_ready() else "building"
+    cache_dir = Path(__file__).parent / "cache"
+    checks["cache_dir"] = "ok" if cache_dir.exists() and cache_dir.is_dir() else "missing"
+    try:
+        keys = list(cache_dir.glob("us_*")) if cache_dir.exists() else []
+        checks["understat_cache"] = f"{len(keys)} cached items"
+    except Exception:
+        checks["understat_cache"] = "unknown"
+    overall = "ok" if checks.get("statsbomb_index") in ("ready", "building") else "degraded"
+    return {"status": overall, "checks": checks}

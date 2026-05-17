@@ -82,25 +82,33 @@ export default function PlayerHeatmaps() {
             <div className="card" style={{ marginTop: 16 }}>
               <div className="label" style={{ marginBottom: 10 }}>All Players — Touch Count</div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-                {[{ team: team1, pMap: p1, color: '#5b9bd5' }, { team: team2, pMap: p2, color: '#d94f5c' }].map(({ team, pMap, color }) => (
-                  <div key={team}>
-                    <div style={{ color, fontWeight: 700, fontSize: 12, marginBottom: 8 }}>{team}</div>
-                    {Object.entries(pMap).sort((a, b) => b[1].count - a[1].count).map(([name, info]) => {
-                      const maxC = Object.values(pMap).reduce((m, v) => Math.max(m, v.count), 1);
-                      return (
+                {[{ team: team1, pMap: p1, color: '#5b9bd5' }, { team: team2, pMap: p2, color: '#d94f5c' }].map(({ team, pMap, color }) => {
+                  const maxC = Math.max(1, ...Object.values(pMap).map(v => v.count));
+                  const totalTouches = Object.values(pMap).reduce((s, v) => s + v.count, 0);
+                  return (
+                    <div key={team}>
+                      <div style={{ color, fontWeight: 700, fontSize: 12, marginBottom: 8 }}>{team}</div>
+                      {Object.entries(pMap).sort((a, b) => b[1].count - a[1].count).map(([name, info]) => (
                         <div key={name} style={{ marginBottom: 5 }}>
                           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 2 }}>
                             <span style={{ fontSize: 10, color: 'var(--text)' }}>{name.split(' ').slice(-1)[0]}</span>
-                            <span style={{ fontSize: 10, color }}>{info.count}</span>
+                            <span style={{ fontSize: 10, color }}>
+                              {info.count}
+                              {totalTouches > 0 && (
+                                <span style={{ color: 'var(--muted)', marginLeft: 4 }}>
+                                  ({((info.count / totalTouches) * 100).toFixed(1)}%)
+                                </span>
+                              )}
+                            </span>
                           </div>
                           <div style={{ height: 3, borderRadius: 2, background: 'var(--border)' }}>
                             <div style={{ height: '100%', width: `${(info.count / maxC) * 100}%`, background: color, borderRadius: 2 }} />
                           </div>
                         </div>
-                      );
-                    })}
-                  </div>
-                ))}
+                      ))}
+                    </div>
+                  );
+                })}
               </div>
             </div>
           </div>

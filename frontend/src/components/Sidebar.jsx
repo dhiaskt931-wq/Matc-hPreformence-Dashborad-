@@ -1,6 +1,7 @@
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useState } from 'react';
 import { useMatch } from '../context/MatchContext';
+import { abbrev } from '../utils/teamAbbrev';
 
 /* ── Icons ─────────────────────────────────────────────────────────────── */
 const Icon = ({ d, size = 16, style }) => (
@@ -80,7 +81,6 @@ function NavItem({ path, icon, label, collapsed, featureStatus }) {
       end={path === '/'}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
-      onClick={isUnavailable ? (e) => e.preventDefault() : undefined}
       style={({ isActive }) => ({
         display: 'flex',
         alignItems: 'center',
@@ -111,7 +111,7 @@ function NavItem({ path, icon, label, collapsed, featureStatus }) {
         whiteSpace: 'nowrap',
         letterSpacing: '-0.01em',
         opacity: isUnavailable ? 0.35 : 1,
-        pointerEvents: isUnavailable ? 'all' : undefined,
+        pointerEvents: isUnavailable ? 'none' : undefined,
       })}
     >
       {({ isActive }) => (
@@ -286,7 +286,7 @@ export default function Sidebar() {
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
               <span style={{ fontSize: 12, fontWeight: 800, color: 'var(--arg)', letterSpacing: '0.04em' }}>
-                {selected.home_team?.slice(0, 3).toUpperCase()}
+                {abbrev(selected.home_team)}
               </span>
               <span style={{
                 fontSize: 11, fontWeight: 700, color: 'var(--text)',
@@ -298,7 +298,7 @@ export default function Sidebar() {
                 {selected.home_score} – {selected.away_score}
               </span>
               <span style={{ fontSize: 12, fontWeight: 800, color: 'var(--fra)', letterSpacing: '0.04em' }}>
-                {selected.away_team?.slice(0, 3).toUpperCase()}
+                {abbrev(selected.away_team)}
               </span>
             </div>
             <div style={{ fontSize: 10, color: 'var(--muted)', marginTop: 4, letterSpacing: '-0.01em' }}>
