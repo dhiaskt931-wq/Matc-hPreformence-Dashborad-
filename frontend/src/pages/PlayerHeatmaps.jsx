@@ -2,7 +2,7 @@ import { useMatch } from '../context/MatchContext';
 import { useState } from 'react';
 import useFetch from '../hooks/useFetch';
 import { fetchHeatmap } from '../api/matchApi';
-import PageShell from '../components/PageShell';
+import PageShell, { EventDataRequired } from '../components/PageShell';
 import GridHeatmap from '../components/GridHeatmap';
 
 
@@ -21,10 +21,15 @@ function PlayerSelect({ players, selected, onChange, color }) {
 }
 
 export default function PlayerHeatmaps() {
-  const { selected } = useMatch();
+  const { selected, features } = useMatch();
   const { data, error, loading } = useFetch(fetchHeatmap, selected.matchId);
   const [sel1, setSel1] = useState(null);
   const [sel2, setSel2] = useState(null);
+
+  // Guard AFTER all hooks
+  if (features?.features?.['heatmap'] === 'unavailable') {
+    return <EventDataRequired source={features.source} />;
+  }
 
   return (
     <PageShell loading={loading} error={error}>

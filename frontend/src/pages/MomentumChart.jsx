@@ -1,7 +1,7 @@
 import { useMatch } from '../context/MatchContext';
 import useFetch from '../hooks/useFetch';
 import { fetchMomentum } from '../api/matchApi';
-import PageShell from '../components/PageShell';
+import PageShell, { EventDataRequired } from '../components/PageShell';
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip,
   ReferenceLine, ResponsiveContainer, Legend,
@@ -9,8 +9,13 @@ import {
 
 
 export default function MomentumChart() {
-  const { selected } = useMatch();
+  const { selected, features } = useMatch();
   const { data, error, loading } = useFetch(fetchMomentum, selected.matchId);
+
+  // Guard AFTER all hooks
+  if (features?.features?.['momentum'] === 'unavailable') {
+    return <EventDataRequired source={features.source} />;
+  }
 
   return (
     <PageShell loading={loading} error={error}>

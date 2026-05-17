@@ -1,4 +1,5 @@
-import { createContext, useContext, useState } from 'react';
+import { createContext, useContext, useState, useEffect } from 'react';
+import { fetchAvailableFeatures } from '../api/matchApi';
 
 const DEFAULT_MATCH = {
   matchId: 3869685,
@@ -15,9 +16,18 @@ const MatchContext = createContext(null);
 
 export function MatchProvider({ children }) {
   const [selected, setSelected] = useState(DEFAULT_MATCH);
+  const [features, setFeatures] = useState(null);
+
+  useEffect(() => {
+    if (!selected?.matchId) return;
+    setFeatures(null);
+    fetchAvailableFeatures(selected.matchId)
+      .then(setFeatures)
+      .catch(() => setFeatures(null));
+  }, [selected?.matchId]);
 
   return (
-    <MatchContext.Provider value={{ selected, setSelected }}>
+    <MatchContext.Provider value={{ selected, setSelected, features }}>
       {children}
     </MatchContext.Provider>
   );

@@ -2,7 +2,7 @@ import { useMatch } from '../context/MatchContext';
 import { useState } from 'react';
 import useFetch from '../hooks/useFetch';
 import { fetchPassNetwork } from '../api/matchApi';
-import PageShell from '../components/PageShell';
+import PageShell, { EventDataRequired } from '../components/PageShell';
 import PitchBase from '../components/PitchBase';
 
 const VW = 480, VH = 320, PW = 120, PH = 80;
@@ -50,9 +50,14 @@ function Network({ nodes, edges, color }) {
 }
 
 export default function PassNetwork() {
-  const { selected } = useMatch();
+  const { selected, features } = useMatch();
   const { data, error, loading } = useFetch(fetchPassNetwork, selected.matchId);
   const [activeTeam, setActiveTeam] = useState(0);
+
+  // Guard AFTER all hooks
+  if (features?.features?.['pass-network'] === 'unavailable') {
+    return <EventDataRequired source={features.source} />;
+  }
 
   return (
     <PageShell loading={loading} error={error}>

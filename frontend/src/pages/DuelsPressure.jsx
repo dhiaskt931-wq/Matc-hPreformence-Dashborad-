@@ -2,14 +2,19 @@ import { useMatch } from '../context/MatchContext';
 import { useState } from 'react';
 import useFetch from '../hooks/useFetch';
 import { fetchPressure } from '../api/matchApi';
-import PageShell from '../components/PageShell';
+import PageShell, { EventDataRequired } from '../components/PageShell';
 import GridHeatmap from '../components/GridHeatmap';
 
 
 export default function DuelsPressure() {
-  const { selected } = useMatch();
+  const { selected, features } = useMatch();
   const { data, error, loading } = useFetch(fetchPressure, selected.matchId);
   const [activePressTeam, setActivePressTeam] = useState(0);
+
+  // Guard AFTER all hooks
+  if (features?.features?.['pressure'] === 'unavailable') {
+    return <EventDataRequired source={features.source} />;
+  }
 
   return (
     <PageShell loading={loading} error={error}>

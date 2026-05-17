@@ -2,7 +2,7 @@ import { useMatch } from '../context/MatchContext';
 import { useState } from 'react';
 import useFetch from '../hooks/useFetch';
 import { fetchDefensive } from '../api/matchApi';
-import PageShell from '../components/PageShell';
+import PageShell, { EventDataRequired } from '../components/PageShell';
 import PitchBase from '../components/PitchBase';
 
 const VW = 480, VH = 320, PW = 120, PH = 80;
@@ -16,7 +16,7 @@ const ACTION_CONFIG = {
 };
 
 export default function DefensiveActions() {
-  const { selected } = useMatch();
+  const { selected, features } = useMatch();
   const { data, error, loading } = useFetch(fetchDefensive, selected.matchId);
   const [activeTypes, setActiveTypes] = useState(new Set(['interception', 'clearance', 'block', 'tackle']));
   const [activeTeam, setActiveTeam] = useState('all');
@@ -26,6 +26,11 @@ export default function DefensiveActions() {
     next.has(type) ? next.delete(type) : next.add(type);
     setActiveTypes(next);
   };
+
+  // Guard AFTER all hooks
+  if (features?.features?.['defensive'] === 'unavailable') {
+    return <EventDataRequired source={features.source} />;
+  }
 
   return (
     <PageShell loading={loading} error={error}>
