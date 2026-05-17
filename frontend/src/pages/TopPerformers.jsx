@@ -23,18 +23,19 @@ export default function TopPerformers() {
   const [sortKey, setSortKey] = useState('xg');
   const [teamFilter, setTeamFilter] = useState('all');
 
+  const team1 = data?.team1;
+  const team2 = data?.team2;
+  const players = data?.players ?? [];
+
+  const filtered = useMemo(() => players
+    .filter(p => teamFilter === 'all' || p.team === teamFilter)
+    .filter(p => p.goals > 0 || p.xg > 0 || p.shots > 0 || p.passes > 0 || p.pressures > 0)
+    .sort((a, b) => (b[sortKey] ?? 0) - (a[sortKey] ?? 0)),
+  [players, teamFilter, sortKey]);
+
   return (
     <PageShell loading={loading} error={error}>
-      {data && (() => {
-        const { team1, team2, players } = data;
-
-        const filtered = useMemo(() => players
-          .filter(p => teamFilter === 'all' || p.team === teamFilter)
-          .filter(p => p.goals > 0 || p.xg > 0 || p.shots > 0 || p.passes > 0 || p.pressures > 0)
-          .sort((a, b) => (b[sortKey] ?? 0) - (a[sortKey] ?? 0)),
-        [players, teamFilter, sortKey]);
-
-        return (
+      {data && (
           <div style={{ padding: '24px 24px 40px' }}>
 
             {/* Header row */}
@@ -146,8 +147,7 @@ export default function TopPerformers() {
               </table>
             </div>
           </div>
-        );
-      })()}
+      )}
     </PageShell>
   );
 }
